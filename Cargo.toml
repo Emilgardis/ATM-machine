@@ -4,5 +4,10 @@ version = "0.1.0"
 authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
 
 [dependencies]
-rustbox = {git = "https://github.com/gchp/rustbox.git"}
-uuid = { version = "0.2.2", features = ["v4"] }
+uuid = { version = "0.3.1", features = ["serde", "v4"] }
+rust-crypto = "*"
+rand = "*"
+chrono = {version = "*", features = ["serde"] }
+serde = "0.8"
+serde_json = "*"
+serde_macros = "0.8"

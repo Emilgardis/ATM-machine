@@ -1,141 +1,80 @@
 //! All the account and bank/money functions, handles things.
-//use bank::Currency;
 use std::path::Path;
-use std::fs::File;
+use std::str;
+//use std::io::{Error as IOError, IOErrorKind};
+
+use crypto::digest::Digest;
+use crypto::aes;
+use crypto::blockmodes;
+use crypto::buffer;
+use rand;
+use rand::Rng;
+
+use serde;
+use serde_json;
+
+use chrono;
 use uuid::Uuid;
 
-// Following two taken freely from https://github.com/archer884/exchange/
-pub trait Currency {
-    type Value;
-    fn to_normal(&self) -> f64;
-    fn from_normal(f64) -> Self::Value;
-    fn to<C: Currency>(&self) -> <C as Currency>::Value;
-}
+use currency::{Currency, IndexBill};
 
-macro_rules! currency {
-    ($t:ident, $c:expr, $disp:expr) => {
-        #[derive(Copy, Clone, Debug)]
-        struct $t(f64);
 
-        impl Currency for $t {
-            type Value = $t;
-
-            fn to_normal(&self) -> f64 {
-                self.0 * $c
-            }
-
-            fn from_normal(n: f64) -> Self::Value {
-                $t(n / $c)
-            }
-
-            fn to<C: Currency>(&self) -> <C as Currency>::Value {
-                C::from_normal(self.to_normal())
-            }
-        }
-
-        impl<C: Currency> ::std::ops::Add<C> for $t {
-            type Output = <Self as Currency>::Value;
-
-            fn add(self, rhs: C) -> Self::Output {
-                Self::Output::from_normal(self.to_normal() + rhs.to_normal())
-            }
-        }
-
-        impl<C: Currency> ::std::cmp::PartialEq<C> for $t {
-            fn eq(&self, rhs: &C) -> bool {
-                self.to_normal() == rhs.to_normal()
-            }
-            fn ne(&self, rhs: &C) -> bool {
-                self.to_normal() != rhs.to_normal()
-            }
-        }
-
-        impl ::std::fmt::Display for $t {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                write!(f, $disp, self.0)
-            }
-        }
-    }
-}
-
-pub enum Fault {
-    NoFunds,
-    NoSuchAccount,
-    ParseError,
-}
-
-#[derive(Debug)]
-pub struct IndexBill(f64);
-
-impl Currency for IndexBill {
-    type Value = IndexBill;
-
-    fn to_normal(&self) -> f64 {
-        self.0
-    }
-
-    fn from_normal(n: f64) ->Self::Value {
-        IndexBill(n)
-    }
-
-    fn to<C: Currency>(&self) -> <C as Currency>::Value {
-        C::from_normal(self.to_normal())
-    }
-}
-
-impl<C: Currency> ::std::ops::Add<C> for IndexBill {
-    type Output = <Self as Currency>::Value;
-
-    fn add(self, rhs: C) -> Self::Output {
-        Self::Output::from_normal(self.to_normal() + rhs.to_normal())
-    }
-}
-
-#[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Account {
-    id: Uuid,
-    balance: Option<IndexBill>,
-    name: Option<String>,
-    
-}
-impl Account {
-    fn new(name: &'static str) -> Account {
-        Account {
-            id: Uuid::new_v4(),
-            balance: Some(IndexBill(0.0)),
-            name: Some(name.to_string()),
-        }
-    }
-}
-pub struct Bank {
-    source: String,
-    accounts: Vec<Account>,
+    /// Stores everything one have to know about the account.
+    pub owner: Owner,
+    pub id: Uuid, // Id of account
+    pub created: chrono::DateTime<chrono::UTC>,
+    pub funds: u64, // TODO: Should be safer.
 }
 
-impl Bank {
-    fn open() -> Bank {
-        unimplemented!()
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Owner {
+    /// An end-user
+    pub id: Uuid, // Id of owner.
+    pub name: String,
 }
-pub struct Transfers {
-    recipient: Account,
+
+#[derive(Serialize, Deserialize)]
+pub struct StoredAccount {
+    /// A stored Account.
+    account_string: String,
+    // pub path: Path,
+    pub owner: Owner,
+    pub id: Uuid, // Same as Account.id
 }
-#[cfg(test)]
-mod tests {
-    #[macro_use]
-    use super::*;
-    #[test]
-    fn currency_works(){
-        currency!(USD, 1.00, "${} USD");
-        currency!(SEK, 0.120293, "{} kr");
-        let usd: USD = USD(100.0);
-        let sek: SEK = SEK(100.0 / 0.120293);
-        println!("Value is {}, {}", usd, usd.to::<SEK>());
-        assert_eq!(usd, sek)
+
+impl StoredAccount {
+    fn store<T: AsRef<str>>(owner: &Owner, password: T, account: Account) -> StoredAccount {
+        let id = Uuid::new_v4();
+        // FIXME: Values taken from haskells default of ScryptParams, are they good?
+        let account_string = {
+            let mut password_u8: Vec<u8> = password.as_ref().chars().map(|ch| ch as u8).collect();
+            let iv: Vec<u8> = {
+                let mut rand: rand::OsRng = match rand::OsRng::new() {
+                    Ok(rng) => rng,
+                    Err(_) => panic!("Couldn't get safe random number generator."),
+                };
+                rand.gen_iter().take(16).collect()
+            };
+            let mut buf = Vec::new();
+            {
+                let mut enc = aes::cbc_encryptor(
+                    aes::KeySize::KeySize256, &password_u8,
+                    &iv, blockmodes::PkcsPadding);
+                let mut wr_buff = buffer::RefWriteBuffer::new(&mut buf);
+                let mut rr_buff = buffer::RefReadBuffer::new(&password_u8);
+                enc.encrypt(&mut rr_buff, &mut wr_buff, true);
+            }
+            str::from_utf8(&buf)
+                .unwrap_or_else(|e| panic!("Couldn't make parse result. \n{:?}", e))
+                .into()
+        };
+        StoredAccount {
+            account_string: account_string,
+            id: id,
+            owner: owner.clone(),
+        }
     }
-    #[test]
-    fn account_works(){
-        let user: Account = Account::new("Emil Gardström");
-        println!("User: {:?}", user); 
-    }
+
 }
