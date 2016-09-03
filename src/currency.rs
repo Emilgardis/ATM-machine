@@ -9,6 +9,7 @@ pub trait Currency {
     fn to<C: Currency>(&self) -> <C as Currency>::Value;
 }
 
+#[macro_export]
 macro_rules! currency {
     ($t:ident, $c:expr, $disp:expr) => {
         #[derive(Copy, Clone, Debug)]
@@ -56,7 +57,7 @@ macro_rules! currency {
 }
 
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct IndexBill(f64);
 
 impl Currency for IndexBill {
@@ -82,6 +83,16 @@ impl<C: Currency> ::std::ops::Add<C> for IndexBill {
         Self::Output::from_normal(self.to_normal() + rhs.to_normal())
     }
 }
+
+impl<C: Currency> ::std::cmp::PartialEq<C> for IndexBill {
+   fn eq(&self, rhs: &C) -> bool {
+        self.to_normal() == rhs.to_normal()
+    }
+    fn ne(&self, rhs: &C) -> bool {
+        self.to_normal() != rhs.to_normal()
+    }
+}
+
 impl ::std::fmt::Display for IndexBill {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "{} units", self.0)

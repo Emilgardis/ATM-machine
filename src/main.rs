@@ -6,10 +6,11 @@ extern crate crypto;
 extern crate chrono;
 extern crate rand;
 extern crate serde;
-extern crate serde_json;
-pub mod bank;
+extern crate bincode;
+extern crate base64;
 #[macro_use]
 pub mod currency;
+pub mod bank;
 
 
 fn main() {

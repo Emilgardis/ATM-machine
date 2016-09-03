@@ -7,7 +7,8 @@ authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
 uuid = { version = "0.3.1", features = ["serde", "v4"] }
 rust-crypto = "*"
 rand = "*"
-chrono = {version = "*", features = ["serde"] }
+chrono = { git = "https://github.com/lifthrasiir/rust-chrono", features = ["serde"] }
 serde = "0.8"
-serde_json = "*"
+bincode = "*"
 serde_macros = "0.8"
+base64 = "*"
