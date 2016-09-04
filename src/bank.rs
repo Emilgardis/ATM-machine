@@ -66,7 +66,8 @@ pub struct Account {
     pub id: Uuid, // Id of account
     pub created: chrono::DateTime<chrono::UTC>,
     pub funds: IndexBill, // TODO: Should be safer.
-    // Last updated
+                          // FIXME: Use some kind of struct for containing multiple `Currency`.
+    pub last_updated: chrono::DateTime<chrono::UTC>,
 }
 
 impl Account {
@@ -76,6 +77,7 @@ impl Account {
             id: Uuid::new_v4(),
             created: chrono::UTC::now(),
             funds: funds.to::<IndexBill>(),
+            last_updated: chrono::UTC::now(),
         }
     }
 
@@ -175,6 +177,7 @@ impl StoredAccount {
         bincode::serde::deserialize(&result)
     }
 }
+
 
 #[cfg(test)]
 mod bank_tests {
