@@ -2,6 +2,7 @@
 //! 
 //! Taken freely from https://github.com/archer884/exchange/
 
+// FIXME: Make unassociated or implement correct behaviour in bank.rs
 pub trait Currency {
     type Value;
     fn to_normal(&self) -> f64;

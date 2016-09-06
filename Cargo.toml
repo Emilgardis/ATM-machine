@@ -9,6 +9,5 @@ rust-crypto = "*"
 rand = "*"
 chrono = { git = "https://github.com/lifthrasiir/rust-chrono", features = ["serde"] }
 serde = "0.8"
-bincode = "*"
 serde_macros = "0.8"
 base64 = "*"
