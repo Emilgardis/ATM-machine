@@ -10,7 +10,7 @@ use base64;
 use chrono;
 use uuid::Uuid;
 
-use currency::{Currency, IndexBill};
+use currency::Money;
 use transaction::Transaction;
 
 /// Basic representation of rscrypt, params are always 14, 8 and 1
@@ -53,18 +53,18 @@ impl Scrypt {
 /// Stores everything one have to know about the account.
 pub struct Account {
     // FIXME Make Transaction with Currency instead of Build
-    pub transactions: Vec<Transaction<IndexBill>>,
+    pub transactions: Vec<Transaction>,
 }
 
 impl Account {
     // TODO: Make initial_funds generic with C: Currency
-    pub fn new(initial_funds: IndexBill, owner_id: Uuid) -> Account {
+    pub fn new(initial_funds: Option<Money>, owner_id: Uuid) -> Account {
         let mut transactions = Vec::new();
-        if initial_funds.to_normal() > 0. {
+        if initial_funds.is_some() {
             transactions.push(Transaction::Deposit {
                 from: owner_id,
                 date: chrono::UTC::now(),
-                amount: initial_funds,
+                amount: initial_funds.unwrap(),
             });
         }
         Account {
@@ -104,7 +104,7 @@ pub struct StoredAccount {
 
 impl StoredAccount {
     // FIXME: Should we take account? Or just borrow?
-    fn new<T: AsRef<str>, C: Currency>(owner: Owner, funds: C, password: T) -> StoredAccount {
+    fn new<T: AsRef<str>>(owner: Owner, funds: Option<Money>, password: T) -> StoredAccount {
         #[cfg(debug_assertions)]
         println!("WARNING! Please note that currently all accounts are using plaintext passwords\n\
                   Build in --release to use scrypt");
@@ -118,7 +118,7 @@ impl StoredAccount {
         #[cfg(debug_assertions)]
         let scrypt: String = String::from(password.as_ref());
 
-        let account = Account::new(funds.to::<IndexBill>(), owner.id);
+        let account = Account::new(funds, owner.id);
         let created = chrono::UTC::now();
 
         StoredAccount {
@@ -152,13 +152,12 @@ impl StoredAccount {
 #[cfg(test)]
 mod bank_tests {
     use super::*;
-    use currency::Currency;
-    currency!(SEK, 0.120293, "{} kr");
+    use currency::{Currency, Money};
     
     #[test]
     fn secure_account_and_decrypt() {
         let owner = Owner::new("John Doe");
-        let mut sec_account = StoredAccount::new(owner, SEK(100.0), "hunter1");
+        let mut sec_account = StoredAccount::new(owner, Some(Money::new(Currency::SEK, 100.0)), "hunter1");
 
         println!("{:?}", sec_account);
         let open_account = sec_account.open("hunter1").unwrap();
@@ -169,7 +168,7 @@ mod bank_tests {
     #[should_panic]
     fn open_with_wrong_password() {
         let owner = Owner::new("John Doe");
-        let mut sec_account = StoredAccount::new(owner, SEK(100.0), "hunter1");
+        let mut sec_account = StoredAccount::new(owner, None, "hunter1");
 
         //println!("{:?}", sec_account);
         let open_account = sec_account.open("wrongpass").expect("Fail means success");

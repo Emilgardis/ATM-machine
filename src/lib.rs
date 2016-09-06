@@ -12,7 +12,3 @@ extern crate base64;
 pub mod currency;
 pub mod bank;
 pub mod transaction;
-
-fn main() {
-    println!("YE")
-}
