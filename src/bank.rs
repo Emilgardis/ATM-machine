@@ -1,6 +1,8 @@
 //! All the account and bank/money functions, handles things.
 use std::str;
 use std::iter;
+use std::hash;
+use std::collections::HashMap;
 //use std::io::{Error as IOError, IOErrorKind};
 
 use crypto::scrypt;
@@ -94,12 +96,19 @@ impl Owner {
 pub struct StoredAccount {
     /// A stored Account.
     account: Account,
+    pub pending_transactions: Vec<Transaction>,
     // pub path: Path,
     pub owner: Owner,
     scrypt: String,
-    pub id: Uuid, // Same as Account.id
+    pub id: Uuid, // Same as Account.id, not same as owner.id
     pub created: chrono::DateTime<chrono::UTC>,
     pub last_updated: chrono::DateTime<chrono::UTC>,
+}
+
+impl hash::Hash for StoredAccount {
+    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
+        self.id.hash(state)
+    }
 }
 
 impl StoredAccount {
@@ -123,6 +132,7 @@ impl StoredAccount {
 
         StoredAccount {
             account: account,
+            pending_transactions: Vec::new(),
             id: id,
             scrypt: scrypt,
             owner: owner,
@@ -148,6 +158,16 @@ impl StoredAccount {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct AccountStorage{
+    _accounts: HashMap<Uuid, StoredAccount>, // FIXME: This should actually be a unloaded StoredAccount, less memory.
+}
+
+impl AccountStorage {
+    pub fn fetch(&mut self, id: &Uuid) -> Result<&mut StoredAccount, ()> {
+        self._accounts.get_mut(id).ok_or(())
+    }
+}
 
 #[cfg(test)]
 mod bank_tests {
@@ -159,9 +179,9 @@ mod bank_tests {
         let owner = Owner::new("John Doe");
         let mut sec_account = StoredAccount::new(owner, Some(Money::new(Currency::SEK, 100.0)), "hunter1");
 
-        println!("{:?}", sec_account);
+        println!("{:#?}", sec_account);
         let open_account = sec_account.open("hunter1").unwrap();
-        println!("{:?}", open_account.transactions);
+        println!("{:#?}", open_account);
     }
 
     #[test]
