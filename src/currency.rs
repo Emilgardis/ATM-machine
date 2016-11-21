@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Money {
     pub currency: Currency,
     pub amount: f64,
@@ -15,7 +15,7 @@ impl Money {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Currency {
     Dollar,
     SEK,

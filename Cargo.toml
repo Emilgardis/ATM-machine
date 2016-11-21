@@ -10,4 +10,5 @@ rand = "*"
 chrono = { git = "https://github.com/lifthrasiir/rust-chrono", features = ["serde"] }
 serde = "0.8"
 serde_derive = "0.8"
+serde_json = "*"
 base64 = "*"
