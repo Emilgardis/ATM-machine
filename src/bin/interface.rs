@@ -14,7 +14,12 @@ use std::io::{self, Read};
 
 
 mod errors {
-    error_chain! { }
+	use atm_machine as atm;
+    error_chain! {
+		links {
+			Atm(atm::error::Error, atm::error::ErrorKind);
+		}
+	}
 }
 
 use errors::*;
@@ -37,14 +42,14 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut password = String::new();
-    let stdin = io::stdin().read_to_string(&mut password);
-    println!("Got stdin");
+    //let mut password = String::new();
+    //let stdin = io::stdin().read_to_string(&mut password);
+    //println!("Got stdin");
     let owner_1 = Owner::new("Joe John");
     let funds_1 = Money::new(Currency::SEK, 100.0);
-    let acc_1 = StoredAccount::new(owner_1, funds_1, password);
+    //let acc_1 = StoredAccount::new(owner_1, funds_1, password);
     let mut storage = AccountStorage::from(env!("PWD"))?;
-    storage.store(acc_1)?;
+    //storage.store(acc_1)?;
     // FIXME: Load accounts
     let mut accounts = storage.get_accounts();
     println!("{:#?}", accounts);

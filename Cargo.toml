@@ -8,7 +8,13 @@ uuid = { version = "*", features = ["serde", "v4"] }
 rust-crypto = "*"
 rand = "*"
 chrono = { git = "https://github.com/lifthrasiir/rust-chrono", features = ["serde"] }
-serde = "0.8"
-serde_derive = "0.8"
+serde = "*"
+serde_derive = "*"
 serde_json = "*"
 base64 = "*"
+error-chain = "*"
+slog = "*"
+
+[[bin]]
+name = "atm-interface"
+path = "src/bin/interface.rs"
