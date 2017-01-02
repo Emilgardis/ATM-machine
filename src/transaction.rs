@@ -35,7 +35,7 @@ impl Transaction {
     pub fn get_change(&self, id: &Uuid) -> Option<(Currency, f64)> {
         match *self {
             Transaction::Deposit { from, ref amount, date: _} => {
-                if &from == id {
+                if &from == id { // What does from even do here?
                     return Some((amount.currency.clone(), amount.amount.clone()));
                 }
                 return None;
@@ -118,4 +118,16 @@ pub enum TransactionStatus {
     Pending,
     Completed, // FIXME: Should this be used, pendingtransactions vec becomes more of a logbook
     Declined,
+}
+
+
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn check_get_change() {
+        panic!()
+    }
 }

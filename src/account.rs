@@ -3,7 +3,7 @@ use std::str;
 use std::iter;
 use std::hash;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
 use std::io;
 
@@ -127,7 +127,7 @@ impl hash::Hash for StoredAccount {
 
 impl StoredAccount {
     // FIXME: Should we take account? Or just borrow?
-    fn new<T: AsRef<str>, F: Into<Option<Money>>>(owner: Owner, funds: F, password: T) -> StoredAccount {
+    pub fn new<T: AsRef<str>, F: Into<Option<Money>>>(owner: Owner, funds: F, password: T) -> StoredAccount {
         #[cfg(all(debug_assertions, not(test)))] // Disable this print on test, but enable otherwise when in debug
         println!("WARNING! Please note that currently all accounts are using plaintext passwords\n\
                   Build in --release to use scrypt");
@@ -183,29 +183,63 @@ impl StoredAccount {
     } 
 }
 
+#[derive(Debug)]
 struct FiledAccount {
-    pub path: Box<Path>,
-    pub id: Box<Uuid>,
-    pub owner: Box<Owner>,
+    pub path: String,
+    pub id: Uuid,
+    pub owner: Owner,
 }
 
 impl FiledAccount {
-    pub fn access(&self) -> Result<StoredAccount, serde_json::Error> {
+    pub fn access(&self, folder: PathBuf) -> Result<StoredAccount, serde_json::Error> {
+        let mut path = folder.clone();
+        path.push(&self.path);
+        println!("Accessing {:?}.", path);
         let file = fs::OpenOptions::new()
             .read(true).open(&self.path)?;
         FiledAccount::_load(file)
     }
 
-    pub fn _load(file: fs::File) -> Result<StoredAccount, serde_json::Error> {
+    fn _load(file: fs::File) -> Result<StoredAccount, serde_json::Error> {
         // TODO: Make it so that a check exists so max one StoredAccount exists for each account.
         serde_json::from_reader(file)
     }
-
-    pub fn _store_created(account: StoredAccount) -> FiledAccount {
-        // FIXME: Should this be done on drop?
-        // If so, FiledAccount should somehow dictate the life of a &mut StoredAccount.
+    pub fn new<F: AsRef<Path>>(file_path: F) -> Result<FiledAccount, serde_json::Error> {
+        let file = fs::OpenOptions::new()
+            .read(true).open(file_path)?;
+        let account = FiledAccount::_load(file)?;
+        let id = format!("{}.acc", account.id);
+        Ok(
+            FiledAccount{
+                path: id,
+                id: account.id.clone(),
+                owner: account.owner.clone(),
+            }
+        )
+    }
+    #[deny(unused_result)]
+    pub fn store<P: AsRef<Path>>(mut account: StoredAccount, folder: P) -> Result<FiledAccount, serde_json::Error> {
         // Maybe use Future??
-        unimplemented!()
+        let folder = folder.as_ref();
+        assert!(folder.is_dir());
+		// --------------------------------------------------------------------------------------------
+		// FIXME: FIXME: FIXME!!!!
+        let id = format!("{}+.acc", account.id);
+        let mut path = folder.to_path_buf();
+        path.push(id.clone());
+        println!("Saving {:?} to {:?}", id, path);
+        let mut file = fs::OpenOptions::new()
+            .create_new(true).write(true).open(&path)?;
+        serde_json::to_writer(&mut file, &mut account)?;
+
+        Ok(
+            FiledAccount { // FIXME: This is seriously wrong somehow.
+                // Maybe they changed box syntax?
+                path: id, // path and id is the same thing in different formats. FIXME: 
+                id: account.id.clone(),
+                owner: account.owner.clone(),
+            }    
+        )
     }
 }
 
@@ -216,9 +250,30 @@ impl hash::Hash for FiledAccount {
 }
 pub struct AccountStorage {
     _accounts: HashMap<Uuid, FiledAccount>,
+    path: PathBuf,
 }
 
 impl AccountStorage {
+    pub fn from<T: AsRef<Path>>(path: T) -> Result<AccountStorage, serde_json::Error> {
+        use std::ffi::OsStr;
+        let path = path.as_ref().to_path_buf();
+        let mut accounts = HashMap::new();
+        for entry in path.read_dir()? {
+            let entry = entry?.path();
+            if entry.extension() != Some(OsStr::new("acc")) {
+                continue;
+            }
+            let acc: FiledAccount = FiledAccount::new(entry)?;
+            println!("Found {:?}, added to storage.", acc);
+            accounts.insert(acc.id.clone(), acc);
+        }
+        Ok(
+            AccountStorage {
+                _accounts: accounts,
+                path: path,
+            }
+        )
+    }
     fn fetch_unloaded(&mut self, id: &Uuid) -> Result<&mut FiledAccount, serde_json::Error> {
         self._accounts.get_mut(id)
             .ok_or(io::Error::new(io::ErrorKind::Other, format!("No such account: {}", id)).into())
@@ -227,27 +282,43 @@ impl AccountStorage {
     pub fn fetch(&mut self, id: &Uuid) -> Result<StoredAccount, serde_json::Error> {
         // TODO: Consider making this bounded with mut and a lifetime to prevent two
         // StoredAccounts on same path.
-        let account = self.fetch_unloaded(id)?.access()?;
+        let path = self.path.clone();
+        let account = self.fetch_unloaded(id)?.access(path)?;
         Ok(account)
+    }
+
+    pub fn store(&mut self, account: StoredAccount) -> Result<(), serde_json::Error>{
+        let filedacc = FiledAccount::store(account, &self.path)?;
+        self._accounts.insert(filedacc.id, filedacc);
+        Ok(())
     }
 
     pub fn get_ids(&self) -> Vec<&Uuid> {
         self._accounts.keys().collect()
     }
+    
 
-    pub fn get_owner(&self, id: &Uuid) -> Result<&Owner, serde_json::Error> {
+    pub fn get_owner(&self, id: &Uuid) -> Result<Owner, serde_json::Error> {
         let acc: &FiledAccount = self._accounts.get(id)
             .ok_or(io::Error::new(io::ErrorKind::Other, format!("No such account: {}", id)))?;
-        let owner = acc.owner.as_ref();
+        let owner = acc.owner.clone();
         Ok(owner)
     }
+
     /// Get accounts of user with id user_id
-    pub fn get_accounts(&mut self, user_id: &Uuid) -> Vec<Result<StoredAccount, serde_json::Error>> {
+    pub fn get_accounts_of_user(&mut self, user_id: &Uuid) -> Vec<Result<StoredAccount, serde_json::Error>> {
         let mut res = Vec::new();
         for acc in &mut self._accounts.values_mut() {
             if &acc.owner.id == user_id {
-                res.push(acc.access());
+                res.push(acc.access(self.path.clone()));
             }
+        }
+        res
+    }
+    pub fn get_accounts(&mut self) -> Vec<Result<StoredAccount, serde_json::Error>> {
+        let mut res = Vec::new();
+        for acc in &mut self._accounts.values_mut() {
+            res.push(acc.access(self.path.clone()));
         }
         res
     }
@@ -284,12 +355,16 @@ mod account_tests {
         use std::collections::HashMap;
         let owner = Owner::new("John Doe");
         let mut sec_account = StoredAccount::new(owner, Money::new(Currency::SEK, 100.0), "hunter1");
+        let other_owner = Owner::new("Jane Doe");
+        let mut other_sec_account = StoredAccount::new(other_owner, Money::new(Currency::Yen, 100.0), "password");
         sec_account.account.transactions.push(Transaction::deposit(
             sec_account.id, Money::new(Currency::SEK, 100.0)));
         sec_account.account.transactions.push(Transaction::withdrawal(
             sec_account.id, Money::new(Currency::Other("ISK".into()), 40.0)));
         sec_account.account.transactions.push(Transaction::payment(
-            Uuid::new_v4(), sec_account.id, Money::new(Currency::Dollar, 30.0)));
+            other_sec_account.id, sec_account.id, Money::new(Currency::Dollar, 30.0)));
+        other_sec_account.account.transactions.push(Transaction::payment(
+            other_sec_account.id, sec_account.id, Money::new(Currency::Dollar, 30.0)));
         let funds = sec_account.funds();
         let checks = {
             let mut checks = HashMap::new();
@@ -303,6 +378,6 @@ mod account_tests {
         for (curr, amount) in funds.iter() {
             assert_eq!(amount, checks.get(curr).unwrap());
         }
-
+        // FIXME: Add check for other account
     }
 }
