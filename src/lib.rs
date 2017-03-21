@@ -22,3 +22,4 @@ pub mod account;
 pub mod currency;
 pub mod transaction;
 pub mod error;
+pub mod schema;

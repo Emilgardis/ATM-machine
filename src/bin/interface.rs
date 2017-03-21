@@ -8,7 +8,7 @@ extern crate diesel;
 extern crate dotenv;
 // mod custom_views;
 use atm_machine as atm;
-use atm::account::{StoredAccount, Account, Owner};
+use atm::account::{NewAccount, Owner};
 use steel_cent::{Money, currency};
 use std::collections::HashMap;
 use std::path::Path;
@@ -29,7 +29,8 @@ pub mod errors {
         foreign_links {
             DotEnv(dotenv::DotenvError);
             VarErr(::std::env::VarError);
-            Diesel(diesel::ConnectionError);
+            DieselConn(diesel::ConnectionError);
+            Diesel(diesel::result::Error);
         }
 	}
 }
@@ -59,9 +60,9 @@ fn run() -> Result<()> {
     //println!("Got stdin");
     let owner_1 = Owner::new("Joe John");
     let funds_1 = Money::of_major(currency::SEK, 100);
-    let acc_1 = StoredAccount::new(owner_1, funds_1, password)?;
-    diesel_conn::establish_connection()?;
-    diesel_conn::add_account(acc_1)?;
+    let acc_1 = NewAccount::new(&owner_1, funds_1, password).chain_err(|| "Failed to create new account")?;
+    let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
+    diesel_conn::add_account(&conn, acc_1).chain_err(|| "Failed to add new account to database")?;
     //println!("{:#?}", acc_1);
 	Ok(())
 }

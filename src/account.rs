@@ -13,42 +13,14 @@ use argon2;
 use chrono;
 use uuid::Uuid;
 
-use serde_json;
-
 use currency::Money;
 use steel_cent;
 use transaction::{Transaction, PendingTransaction};
 use error::*;
+use diesel::prelude::*;
+use diesel;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// Stores everything one have to know about the account.
-pub struct Account {
-    // FIXME Make Transaction with Currency instead of Build
-    #[serde(rename="Transactions")]
-    pub transactions: Vec<Transaction>,
-    #[serde(rename="PendingTransactions")]
-    pub pending_transactions: Vec<PendingTransaction>,
-}
-
-impl Account {
-    // TODO: Make initial_funds generic with C: Currency
-    pub fn new(initial_funds: Option<Money>, id: Uuid) -> Account {
-        let mut transactions = Vec::new();
-        if initial_funds.is_some() {
-            transactions.push(Transaction::Deposit {
-                from: id,
-                date: chrono::UTC::now(),
-                amount: initial_funds.unwrap(),
-            });
-        }
-        Account {
-            transactions: transactions,
-            pending_transactions: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, )]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Queryable)]
 pub struct Owner {
     /// An end-user
     #[serde(rename="OwnerId")]
@@ -65,42 +37,23 @@ impl Owner {
         }
     }
 }
-//#[derive(Queryable, Identifiable, AsChangeset)]
-#[derive(Debug, Serialize, Deserialize, Queryable)]
-pub struct StoredAccount {
-    /// A stored Account.
-    pub account: Account,
-    // pub path: Path,
-    #[serde(rename="Owner")]
-    pub owner: Owner,
-    #[serde(rename="Hash")]
+
+use schema::accounts;
+
+#[derive(Debug, Insertable)]
+#[table_name="accounts"]
+pub struct NewAccount {
+    id: Uuid,
+    owner_id: Uuid,
     pw_hash: String,
-    #[serde(rename="Id")]
-    pub id: Uuid, // Same as Account.id, not same as owner.id
-    #[serde(rename="Created")]
     pub created: chrono::DateTime<chrono::UTC>,
-    #[serde(rename="LastUpdated")]
     pub last_updated: chrono::DateTime<chrono::UTC>,
 }
 
-/*table! {
-    stored_accounts (id) {
-        id -> Uuid,
-        last_updated -> Timestamptz,
-        created -> Timestamptz,
-        account -> Account,
-        pw_hash -> VarChar,
-    }
-}*/
-impl hash::Hash for StoredAccount {
-    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
-        self.id.hash(state)
-    }
-}
 
-impl StoredAccount {
+impl NewAccount {
     // FIXME: Should we take account? Or just borrow?
-    pub fn new<T: AsRef<str>, F: Into<Option<Money>>>(owner: Owner, funds: F, password: T) -> Result<StoredAccount> {
+    pub fn new<T: AsRef<str>, F: Into<Option<Money>>>(owner: &Owner, funds: F, password: T) -> Result<NewAccount> {
         #[cfg(all(debug_assertions, not(test)))] // Disable this print on test, but enable otherwise when in debug
         println!("WARNING! Please note that currently all accounts are using plaintext passwords\n\
                   Build in --release to use scrypt");
@@ -119,20 +72,42 @@ impl StoredAccount {
         #[cfg(debug_assertions)]
         let pw_hash: String = String::from(password.as_ref());
 
-        let account = Account::new(funds.into(), id);
         let created = chrono::UTC::now();
         Ok(
-            StoredAccount {
-                account: account,
+            NewAccount {
                 id: id,
                 pw_hash: pw_hash,
-                owner: owner,
+                owner_id: owner.id,
                 created: created,
                 last_updated: created,
             }
         )
     }
-    
+}
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, AsChangeset)]
+pub struct Account {
+    /// A stored Account.
+    //pub account: Account,
+    // pub path: Path,
+    pub owner_id: Uuid,
+    pw_hash: String,
+    #[primary_key]
+    pub id: Uuid, // Not the same as owner.id, used to track transactions.
+    pub created: chrono::DateTime<chrono::UTC>,
+    pub last_updated: chrono::DateTime<chrono::UTC>,
+}
+
+impl hash::Hash for Account {
+    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
+        self.id.hash(state)
+    }
+}
+
+impl Account {
+    pub fn save(&mut self, conn: diesel::pg::PgConnection) -> Result<()> {
+        self.save_changes::<Account>(&conn).chain_err(|| "While saving")?;
+        Ok(())
+    }
 
     pub fn open<T: AsRef<str>>(&mut self, password: T) -> Result<()> {
         #[cfg(not(debug_assertions))]
@@ -151,13 +126,13 @@ impl StoredAccount {
     }
 
     pub fn funds(&self) -> HashMap<steel_cent::currency::Currency, i64> {
-        let mut map = HashMap::new();
-        for trans in &self.account.transactions {
-            if let Some(money) = trans.get_change(&self.id) {
-                *map.entry(money.currency).or_insert(0) += money.minor_amount()
-            }
-        }
-        map
+        //let mut map = HashMap::new();
+        //for trans in &self.account.transactions {
+        //    if let Some(money) = trans.get_change(&self.id) {
+        //        *map.entry(money.currency).or_insert(0) += money.minor_amount()
+        //    }
+        //}
+        //map
         //for trans in &self.account.transactions {
         //    if let Some((curr, amount)) = trans.get_change(&self.id){
         //        *map.entry(curr).or_insert(0.0) += amount;
@@ -165,6 +140,7 @@ impl StoredAccount {
         //}
         // map.into_iter().map(|(curr, amount)| Money::new(curr, amount)).collect()
         //map
+        unimplemented!()
     } 
 }
 #[cfg(test)]
@@ -187,7 +163,7 @@ mod account_tests {
     #[should_panic]
     fn open_with_wrong_password() {
         let owner = Owner::new("John Doe");
-        let mut sec_account = StoredAccount::new(owner, None, "hunter1").unwrap();
+        let mut sec_account = NewAccount::new(owner, None, "hunter1").unwrap();
 
         //println!("{:?}", sec_account);
         let open_account = sec_account.open("wrongpass").expect("Fail means success");
@@ -197,7 +173,7 @@ mod account_tests {
     fn check_funds() { 
         use std::collections::HashMap;
         let owner = Owner::new("John Doe");
-        let mut sec_account = StoredAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1").unwrap();
+        let mut sec_account = NewAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1").unwrap();
         let other_owner = Owner::new("Jane Doe");
         let mut other_sec_account = StoredAccount::new(other_owner, Money::of_major(scc::JPY, 100), "password").unwrap();
         sec_account.account.transactions.push(Transaction::deposit(
