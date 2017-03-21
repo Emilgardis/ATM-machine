@@ -1,7 +1,8 @@
-use cursive::view;
-use cursive::views;
+use cursive::Cursive;
+
 use atm::account;
-struct BaseView {
-    pub storage: account::AccountStorage,
-    view: views:: 
+use atm::currency;
+struct Storage {
+    pub accountstorage: account::AccountStorage,
+    // pub currencydb: 
 }

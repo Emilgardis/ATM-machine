@@ -1,11 +1,10 @@
-use currency::{Currency, Money};
+use currency::Money;
 
 use uuid::Uuid;
 use chrono;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Transaction {
-    // FIXME: Make generic with Box, or fix in another way
     Transfer {
         sender: Uuid,
         recipient: Uuid,
@@ -32,34 +31,34 @@ pub enum Transaction {
 
 impl Transaction {
     /// As account with id `id`, how much does this transaction affect me?
-    pub fn get_change(&self, id: &Uuid) -> Option<(Currency, f64)> {
+    pub fn get_change(&self, id: &Uuid) -> Option<Money> {
         match *self {
-            Transaction::Deposit { from, ref amount, date: _} => {
+            Transaction::Deposit { from, amount, date: _} => {
                 if &from == id { // What does from even do here?
-                    return Some((amount.currency.clone(), amount.amount.clone()));
+                    return Some(amount);
                 }
                 return None;
             },
-            Transaction::Transfer { sender, recipient, ref amount, date: _} => {
+            Transaction::Transfer { sender, recipient, amount, date: _} => {
                 if &sender == id {
-                    return Some((amount.currency.clone(), -amount.amount.clone()));
+                    return Some(amount.checked_neg().unwrap());
                 };
                 if &recipient == id {
-                    return Some((amount.currency.clone(), amount.amount.clone()));
+                    return Some(amount);
                 };
             },
-            Transaction::Payment { sender, recipient, ref amount, date: _} => {
+            Transaction::Payment { sender, recipient, amount, date: _} => {
                 if &sender == id {
-                    return Some((amount.currency.clone(), -amount.amount.clone()));
+                    return Some(amount.checked_neg().unwrap());
                 };
                 if &recipient == id {
-                    return Some((amount.currency.clone(), amount.amount.clone()));
+                    return Some(amount);
                 };
                 return None; // This shouldn't happen :/, user error
             },
-            Transaction::Withdrawal{ to, ref amount, date: _} => {
+            Transaction::Withdrawal{ to, amount, date: _} => {
                 if &to == id {
-                    return Some((amount.currency.clone(), -amount.amount.clone()));
+                    return Some(amount.checked_neg().unwrap());
                 };
                 return None; // Shouldn't also happen...
             },

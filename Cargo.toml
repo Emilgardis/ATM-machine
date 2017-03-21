@@ -5,16 +5,22 @@ authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
 
 [dependencies]
 uuid = { version = "*", features = ["serde", "v4"] }
-rust-crypto = "*"
 rand = "*"
-chrono = { git = "https://github.com/lifthrasiir/rust-chrono", features = ["serde"] }
+rust-argon2 = "*"
+chrono = { version = "*", features = ["serde"] }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 base64 = "*"
 error-chain = "*"
 slog = "*"
+cursive = "*"
+diesel = { version = "0.11", features = ["postgres", "chrono", "uuid"] }
+diesel_codegen = { version = "0.11", features = ["postgres"] }
+dotenv = "*"
+steel-cent = { path = "steel-cent", features = ["serde_serialize"] }
 
 [[bin]]
 name = "atm-interface"
 path = "src/bin/interface.rs"
+

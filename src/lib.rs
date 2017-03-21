@@ -2,9 +2,10 @@
 #![feature(stmt_expr_attributes)]
 #![feature(box_syntax)]
 extern crate uuid;
-extern crate crypto;
+extern crate argon2;
 extern crate chrono;
 extern crate rand;
+extern crate steel_cent;
 #[macro_use]
 extern crate error_chain;
 extern crate serde;
@@ -12,9 +13,12 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate base64;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_codegen;
+extern crate dotenv;
 pub mod account;
 pub mod currency;
 pub mod transaction;
 pub mod error;
-
-use error::*;
