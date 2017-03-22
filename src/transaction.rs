@@ -33,21 +33,22 @@ impl Transaction {
     /// As account with id `id`, how much does this transaction affect me?
     pub fn get_change(&self, id: &Uuid) -> Option<Money> {
         match *self {
-            Transaction::Deposit { from, amount, date: _} => {
-                if &from == id { // What does from even do here?
+            Transaction::Deposit { from, amount, date: _ } => {
+                if &from == id {
+                    // What does from even do here?
                     return Some(amount);
                 }
                 return None;
-            },
-            Transaction::Transfer { sender, recipient, amount, date: _} => {
+            }
+            Transaction::Transfer { sender, recipient, amount, date: _ } => {
                 if &sender == id {
                     return Some(amount.checked_neg().unwrap());
                 };
                 if &recipient == id {
                     return Some(amount);
                 };
-            },
-            Transaction::Payment { sender, recipient, amount, date: _} => {
+            }
+            Transaction::Payment { sender, recipient, amount, date: _ } => {
                 if &sender == id {
                     return Some(amount.checked_neg().unwrap());
                 };
@@ -55,13 +56,13 @@ impl Transaction {
                     return Some(amount);
                 };
                 return None; // This shouldn't happen :/, user error
-            },
-            Transaction::Withdrawal{ to, amount, date: _} => {
+            }
+            Transaction::Withdrawal { to, amount, date: _ } => {
                 if &to == id {
                     return Some(amount.checked_neg().unwrap());
                 };
                 return None; // Shouldn't also happen...
-            },
+            }
         };
         return None;
     }
@@ -73,7 +74,7 @@ impl Transaction {
             date: chrono::UTC::now(),
         }
     }
-    
+
     pub fn withdrawal(to: Uuid, money: Money) -> Transaction {
         Transaction::Withdrawal {
             to: to,
@@ -81,7 +82,7 @@ impl Transaction {
             date: chrono::UTC::now(),
         }
     }
-    
+
     pub fn transfer(sender: Uuid, recipient: Uuid, money: Money) -> Transaction {
         Transaction::Transfer {
             sender: sender,
@@ -102,7 +103,7 @@ impl Transaction {
 }
 
 
-/// This is here more for bookkeeping. 
+/// This is here more for bookkeeping.
 // FIXME: Decide if this should be used in transactions and or pending_transactions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingTransaction {

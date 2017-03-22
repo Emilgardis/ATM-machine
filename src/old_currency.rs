@@ -1,5 +1,5 @@
 //! Defines behaviour for currency.
-//! 
+//!
 //! Taken freely from https://github.com/archer884/exchange/
 
 // FIXME: Make unassociated or implement correct behaviour in bank.rs
@@ -68,7 +68,7 @@ impl Currency for IndexBill {
         self.0
     }
 
-    fn from_normal(n: f64) ->Self::Value {
+    fn from_normal(n: f64) -> Self::Value {
         IndexBill(n)
     }
 
@@ -86,7 +86,7 @@ impl<C: Currency> ::std::ops::Add<C> for IndexBill {
 }
 
 impl<C: Currency> ::std::cmp::PartialEq<C> for IndexBill {
-   fn eq(&self, rhs: &C) -> bool {
+    fn eq(&self, rhs: &C) -> bool {
         self.to_normal() == rhs.to_normal()
     }
     fn ne(&self, rhs: &C) -> bool {
@@ -106,7 +106,7 @@ mod tests {
     #[macro_use]
     use super::*;
     #[test]
-    fn currency_works(){
+    fn currency_works() {
         currency!(USD, 1.00, "${} USD");
         currency!(SEK, 0.120293, "{} kr");
         let usd: USD = USD(100.0);

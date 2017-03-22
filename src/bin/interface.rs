@@ -55,15 +55,18 @@ fn main() {
 }
 
 fn run() -> Result<()> {
+    println!("Input password of new user");
     let mut password = String::new();
     let stdin = io::stdin().read_to_string(&mut password);
-    //println!("Got stdin");
+    println!("Got stdin");
+    let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
+    println!("All users are: {:?}", diesel_conn::all(&conn));
     let owner_1 = Owner::new("Joe John");
     let funds_1 = Money::of_major(currency::SEK, 100);
     let acc_1 = NewAccount::new(&owner_1, funds_1, password).chain_err(|| "Failed to create new account")?;
-    let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
-    diesel_conn::add_account(&conn, acc_1).chain_err(|| "Failed to add new account to database")?;
-    //println!("{:#?}", acc_1);
+    let mut acc = diesel_conn::add_account(&conn, acc_1).chain_err(|| "Failed to add new account to database")?;
+    println!("{:#?}", acc);
+	acc.save(&conn)?;
 	Ok(())
 }
 
