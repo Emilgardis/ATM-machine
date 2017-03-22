@@ -19,6 +19,7 @@ diesel = { version = "*", features = ["postgres", "chrono", "uuid"] }
 diesel_codegen = { version = "*", features = ["postgres"] }
 dotenv = "*"
 steel-cent = { path = "steel-cent", features = ["serde_serialize"] }
+clippy = {version = "*", optional = true}
 
 [[bin]]
 name = "atm-interface"

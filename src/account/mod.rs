@@ -1,13 +1,7 @@
 //! All the account and bank/money functions, handles things.
-use std::iter;
 use std::hash;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::fs;
-use std::io;
-
 use rand::{OsRng, Rng};
-#[cfg(not(debug_assertions))]
 use argon2;
 
 use chrono;
@@ -15,7 +9,6 @@ use uuid::Uuid;
 
 use currency::Money;
 use steel_cent;
-use transaction::{Transaction, PendingTransaction};
 use error::*;
 use diesel::prelude::*;
 use diesel;
@@ -44,23 +37,23 @@ impl NewAccount {
                                                       funds: F,
                                                       password: T)
                                                       -> Result<NewAccount> {
-        #[cfg(all(debug_assertions, not(test)))] // Disable this print on test, but enable otherwise when in debug
-        println!("WARNING! Please note that currently all accounts are using plaintext \
-                  passwords\nBuild in --release to use scrypt");
+        //#[cfg(all(debug_assertions, not(test)))] // Disable this print on test, but enable otherwise when in debug
+        //#println!("WARNING! Please note that currently all accounts are using plaintext \
+        //#         passwords\nBuild in --release to use scrypt");
         let id = Uuid::new_v4();
 
-         #[cfg(not(debug_assertions))]
+        //#[cfg(not(debug_assertions))]
         let pw_hash: String = {
             let mut rng = OsRng::new()?;
 
             let salt: Vec<u8> = rng.gen_iter::<u8>().take(16).collect();
             let pw = password.as_ref().as_bytes();
-            let config = argon2::Config::new();
-            argon2::hash_encoded(pw, salt, &config)?
+            let config = argon2::Config::default();
+            argon2::hash_encoded(pw, salt.as_slice(), &config)?.to_owned()
 
         };
-        #[cfg(debug_assertions)]
-        let pw_hash: String = String::from(password.as_ref());
+        //#[cfg(debug_assertions)]
+        //#let pw_hash: String = String::from(password.as_ref());
 
         let created = chrono::UTC::now();
         Ok(NewAccount {
@@ -100,13 +93,13 @@ impl Account {
     }
 
     pub fn open<T: AsRef<str>>(&mut self, password: T) -> Result<()> {
-        #[cfg(not(debug_assertions))]
-        let password_matches = argon2::verify_encoded(self.pw_hash, password.as_ref().as_bytes())
-            .chain_err(|| format!("Failed to check password for {}.", self.owner));
-        #[cfg(debug_assertions)]
-        let password_matches = {
-            password.as_ref() == self.pw_hash
-        };
+        //#[cfg(not(debug_assertions))]
+        let password_matches = argon2::verify_encoded(self.pw_hash.as_str(), password.as_ref().as_bytes())
+            .chain_err(|| format!("Failed to check password for {}.", self.id()))?;
+        //#[cfg(debug_assertions)]
+        //#let password_matches = {
+        //#   password.as_ref() == self.pw_hash
+        //#;
 
         if password_matches {
             // return Ok(&mut self.account); FIXME: Make account.transactions locked behind crypto.
@@ -133,69 +126,69 @@ impl Account {
         unimplemented!()
     }
 }
-#[cfg(test)]
-mod account_tests {
-    use super::*;
-    use currency::{currency as scc, Money};
-    use super::super::uuid::Uuid;
-    use transaction::Transaction;
-
-    #[test]
-    fn secure_account_and_decrypt() {
-        let owner = Owner::new("John Doe");
-        let mut sec_account = StoredAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
-            .unwrap();
-
-        println!("{:#?}", sec_account);
-        sec_account.open("hunter1").unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn open_with_wrong_password() {
-        let owner = Owner::new("John Doe");
-        let mut sec_account = NewAccount::new(owner, None, "hunter1").unwrap();
-
-        // println!("{:?}", sec_account);
-        let open_account = sec_account.open("wrongpass").expect("Fail means success");
-    }
-
-    #[test]
-    fn check_funds() {
-        use std::collections::HashMap;
-        let owner = Owner::new("John Doe");
-        let mut sec_account = NewAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
-            .unwrap();
-        let other_owner = Owner::new("Jane Doe");
-        let mut other_sec_account =
-            StoredAccount::new(other_owner, Money::of_major(scc::JPY, 100), "password").unwrap();
-        sec_account.account
-            .transactions
-            .push(Transaction::deposit(sec_account.id, Money::of_major(scc::SEK, 100)));
-        sec_account.account
-            .transactions
-            .push(Transaction::withdrawal(sec_account.id, Money::of_major(scc::ISK, 40)));
-        sec_account.account.transactions.push(Transaction::payment(other_sec_account.id,
-                                                                   sec_account.id,
-                                                                   Money::of_major(scc::USD, 30)));
-        other_sec_account.account
-            .transactions
-            .push(Transaction::payment(other_sec_account.id,
-                                       sec_account.id,
-                                       Money::of_major(scc::USD, 30)));
-        let funds = sec_account.funds();
-        let checks = {
-            let mut checks = HashMap::new();
-            checks.insert(scc::SEK, 20000);
-            checks.insert(scc::ISK, -40);
-            checks.insert(scc::USD, 3000);
-            checks
-        };
-
-        assert_eq!(&funds.len(), &checks.len());
-        for (curr, amount) in funds.iter() {
-            assert_eq!(amount, checks.get(curr).unwrap());
-        }
-        // FIXME: Add check for other account
-    }
-}
+//#[cfg(test)]
+//#mod account_tests {
+//#   use super::*;
+//#   use currency::{currency as scc, Money};
+//#   use super::super::uuid::Uuid;
+//#   use transaction::Transaction;
+//
+//#   #[test]
+//#   fn secure_account_and_decrypt() {
+//#       let owner = Owner::new("John Doe");
+//#       let mut sec_account = StoredAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
+//#           .unwrap();
+//
+//#       println!("{:#?}", sec_account);
+//#       sec_account.open("hunter1").unwrap();
+//#   }
+//
+//#   #[test]
+//#   #[should_panic]
+//#   fn open_with_wrong_password() {
+//#       let owner = Owner::new("John Doe");
+//#       let mut sec_account = NewAccount::new(owner, None, "hunter1").unwrap();
+//
+//#       // println!("{:?}", sec_account);
+//#       let open_account = sec_account.open("wrongpass").expect("Fail means success");
+//#   }
+//
+//#   #[test]
+//#   fn check_funds() {
+//#       use std::collections::HashMap;
+//#       let owner = Owner::new("John Doe");
+//#       let mut sec_account = NewAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
+//#           .unwrap();
+//#       let other_owner = Owner::new("Jane Doe");
+//#       let mut other_sec_account =
+//#           StoredAccount::new(other_owner, Money::of_major(scc::JPY, 100), "password").unwrap();
+//#       sec_account.account
+//#           .transactions
+//#           .push(Transaction::deposit(sec_account.id, Money::of_major(scc::SEK, 100)));
+//#       sec_account.account
+//#           .transactions
+//#           .push(Transaction::withdrawal(sec_account.id, Money::of_major(scc::ISK, 40)));
+//#       sec_account.account.transactions.push(Transaction::payment(other_sec_account.id,
+//#                                                                  sec_account.id,
+//#                                                                  Money::of_major(scc::USD, 30)));
+//#       other_sec_account.account
+//#           .transactions
+//#           .push(Transaction::payment(other_sec_account.id,
+//#                                      sec_account.id,
+//#                                      Money::of_major(scc::USD, 30)));
+//#       let funds = sec_account.funds();
+//#       let checks = {
+//#           let mut checks = HashMap::new();
+//#           checks.insert(scc::SEK, 20000);
+//#           checks.insert(scc::ISK, -40);
+//#           checks.insert(scc::USD, 3000);
+//#           checks
+//#       };
+//
+//#       assert_eq!(&funds.len(), &checks.len());
+//#       for (curr, amount) in funds.iter() {
+//#           assert_eq!(amount, checks.get(curr).unwrap());
+//#       }
+//#       // FIXME: Add check for other account
+//#   }
+//

@@ -1,6 +1,6 @@
-#![feature(proc_macro)]
-#![feature(stmt_expr_attributes)]
-#![feature(box_syntax)]
+#![cfg_attr(feature="clippy", feature(plugin))]
+
+#![cfg_attr(feature="clippy", plugin(clippy))]
 extern crate uuid;
 extern crate argon2;
 extern crate chrono;

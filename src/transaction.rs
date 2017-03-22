@@ -33,38 +33,30 @@ impl Transaction {
     /// As account with id `id`, how much does this transaction affect me?
     pub fn get_change(&self, id: &Uuid) -> Option<Money> {
         match *self {
-            Transaction::Deposit { from, amount, date: _ } => {
+            Transaction::Deposit { from, amount, .. } => {
                 if &from == id {
                     // What does from even do here?
                     return Some(amount);
                 }
-                return None;
+                None
             }
-            Transaction::Transfer { sender, recipient, amount, date: _ } => {
+            Transaction::Transfer { sender, recipient, amount, .. } |
+            Transaction::Payment { sender, recipient, amount, .. } => {
                 if &sender == id {
                     return Some(amount.checked_neg().unwrap());
                 };
                 if &recipient == id {
                     return Some(amount);
                 };
+                None
             }
-            Transaction::Payment { sender, recipient, amount, date: _ } => {
-                if &sender == id {
-                    return Some(amount.checked_neg().unwrap());
-                };
-                if &recipient == id {
-                    return Some(amount);
-                };
-                return None; // This shouldn't happen :/, user error
-            }
-            Transaction::Withdrawal { to, amount, date: _ } => {
+            Transaction::Withdrawal { to, amount, .. } => {
                 if &to == id {
                     return Some(amount.checked_neg().unwrap());
                 };
-                return None; // Shouldn't also happen...
+                None
             }
-        };
-        return None;
+        }
     }
 
     pub fn deposit(from: Uuid, money: Money) -> Transaction {

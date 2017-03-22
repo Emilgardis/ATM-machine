@@ -10,14 +10,12 @@ extern crate dotenv;
 use atm_machine as atm;
 use atm::account::{NewAccount, Owner};
 use steel_cent::{Money, currency};
-use std::collections::HashMap;
-use std::path::Path;
 use std::io::{self, Read};
 mod diesel_conn;
-//mod custom_views;
+// mod custom_views;
 
 pub mod errors {
-	use atm_machine as atm;
+    use atm_machine as atm;
     use dotenv;
     use diesel;
 
@@ -31,6 +29,7 @@ pub mod errors {
             VarErr(::std::env::VarError);
             DieselConn(diesel::ConnectionError);
             Diesel(diesel::result::Error);
+            Io(::std::io::Error);
         }
 	}
 }
@@ -57,17 +56,16 @@ fn main() {
 fn run() -> Result<()> {
     println!("Input password of new user");
     let mut password = String::new();
-    let stdin = io::stdin().read_to_string(&mut password);
+    io::stdin().read_to_string(&mut password)?;
     println!("Got stdin");
     let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
     println!("All users are: {:?}", diesel_conn::all(&conn));
     let owner_1 = Owner::new("Joe John");
     let funds_1 = Money::of_major(currency::SEK, 100);
-    let acc_1 = NewAccount::new(&owner_1, funds_1, password).chain_err(|| "Failed to create new account")?;
+    let acc_1 =
+        NewAccount::new(&owner_1, funds_1, password).chain_err(|| "Failed to create new account")?;
     let mut acc = diesel_conn::add_account(&conn, acc_1).chain_err(|| "Failed to add new account to database")?;
     println!("{:#?}", acc);
-	acc.save(&conn)?;
-	Ok(())
+    acc.save(&conn)?;
+    Ok(())
 }
-
-
