@@ -1,26 +1,7 @@
-[package]
-name = "atm-machine"
-version = "0.1.0"
-authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
+[workspace]
+members = [
+    "atm",
+    "atm-web",
+    "examples/basic",
+]
 
-[dependencies]
-uuid = { version = "*", features = ["serde", "v4"] }
-rand = "*"
-rust-argon2 = "*"
-chrono = { version = "*", features = ["serde"] }
-serde = "*"
-serde_derive = "*"
-base64 = "*"
-error-chain = "*"
-slog = "*"
-cursive = "*"
-diesel = { version = "*", features = ["postgres", "chrono", "uuid"] }
-diesel_codegen = { version = "*", features = ["postgres"] }
-dotenv = "*"
-steel-cent = { path = "steel-cent", features = ["serde_serialize"] }
-clippy = {version = "*", optional = true}
-byteorder = "*"
-
-[[example]]
-name = "basic"
-path = "examples/basic/src/main.rs"

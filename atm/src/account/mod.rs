@@ -39,19 +39,14 @@ impl NewAccount {
                                                       funds: F,
                                                       password: T)
                                                       -> Result<NewAccount> {
-        //#[cfg(all(debug_assertions, not(test)))] // Disable this print on test, but enable otherwise when in debug
-        //#println!("WARNING! Please note that currently all accounts are using plaintext \
-        //#         passwords\nBuild in --release to use scrypt");
         let id = Uuid::new_v4();
-
-        //#[cfg(not(debug_assertions))]
         let pw_hash: String = {
-            let mut rng = OsRng::new()?;
+            let mut rng = OsRng::new().chain_err(|| "While making random generator")?;
 
             let salt: Vec<u8> = rng.gen_iter::<u8>().take(16).collect();
             let pw = password.as_ref().as_bytes();
             let config = argon2::Config::default();
-            argon2::hash_encoded(pw, salt.as_slice(), &config)?.to_owned()
+            argon2::hash_encoded(pw, salt.as_slice(), &config).chain_err(|| "While making encoded hash of password")?.to_owned()
 
         };
         //#[cfg(debug_assertions)]
@@ -96,7 +91,9 @@ impl Account {
 
     pub fn open<T: AsRef<str>>(&mut self, password: T) -> Result<()> {
         //#[cfg(not(debug_assertions))]
-        let password_matches = argon2::verify_encoded(self.pw_hash.as_str(), password.as_ref().as_bytes())
+        let password_matches = argon2::verify_encoded(
+            self.pw_hash.as_str(), password.as_ref().as_bytes()
+            )
             .chain_err(|| format!("Failed to check password for {}.", self.id()))?;
         //#[cfg(debug_assertions)]
         //#let password_matches = {
@@ -110,16 +107,19 @@ impl Account {
         bail!("Password didn't match!")
     }
 
-    pub fn funds(&self) -> HashMap<steel_cent::currency::Currency, i64> {
+    pub fn funds(&self, conn: &PgConnection) -> Result<HashMap<steel_cent::currency::Currency, i64>> {
         // TODO: Should be stored as a vec of all their specific transactions, and maybe
         // optimised so that we neer really do 20+ searches.
-        // let mut map = HashMap::new();
-        // for trans in &self.account.transactions {
-        //    if let Some(money) = trans.get_change(&self.id) {
-        //        *map.entry(money.currency).or_insert(0) += money.minor_amount()
-        //    }
-        //
-        // map
+        let mut map = HashMap::new();
+        // Carrier on for and if let is wierd...
+        for trans in diesel_conn::transactions_from(conn, self)
+            .chain_err(|| format!("While trying to get transactions affecting account {:?}", self.id()))? {
+            if let Some(money) = trans.get_change(&self.id)
+                .chain_err(|| format!("While calculating value of transaction id: {}", trans.serial()))? {
+                *map.entry(money.currency).or_insert(0) += money.minor_amount()
+            }
+        }
+        Ok(map)
         // for trans in &self.account.transactions {
         //    if let Some((curr, amount)) = trans.get_change(&self.id){
         //        *map.entry(curr).or_insert(0.0) += amount;
@@ -127,12 +127,11 @@ impl Account {
         //
         // map.into_iter().map(|(curr, amount)| Money::new(curr, amount)).collect()
         // map
-        unimplemented!()
     }
 
     pub fn transfer(&self, conn: &PgConnection, other: &mut Account, amount: Money) -> Result<Transaction> {
         let trans = NewTransaction::transfer(self.id().clone(), other.id().clone(), amount);
-        diesel_conn::execute_transaction(conn, trans)
+        diesel_conn::execute_transaction(conn, trans).chain_err(|| "Transaction failed")
         
     }
 }

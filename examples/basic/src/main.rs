@@ -1,11 +1,11 @@
-extern crate atm_machine;
+extern crate atm_lib;
 #[macro_use]
 extern crate error_chain;
 extern crate diesel;
 extern crate dotenv;
 extern crate steel_cent;
 // mod custom_views;
-use atm_machine as atm;
+use atm_lib as atm;
 use std::io::{self, Read};
 
 use atm::account::{NewAccount, Owner};
@@ -53,6 +53,14 @@ fn run() -> Result<()> {
     acc_2.save(&conn)?;
     let funds_transfer = Money::of_major(currency::SEK, 100);
     // Should it be a function on Account or from diesel_conn?
-    acc_1.transfer(&conn, &mut acc_2, funds_transfer)?;
+    acc_1.transfer(&conn, &mut acc_2, funds_transfer.clone())?;
+    println!("Funds of {:?} is:", acc_1.id());
+    for (c, a) in acc_1.funds(&conn)? {
+        println!("{}", Money::of_minor(c, a));
+    }
+    println!("Funds of {:?} is:", acc_2.id());
+    for (c, a) in acc_2.funds(&conn)? {
+        println!("{}", Money::of_minor(c, a));
+    }
     Ok(())
 }

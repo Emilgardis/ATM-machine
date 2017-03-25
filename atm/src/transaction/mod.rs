@@ -214,6 +214,9 @@ impl From<TransactionE> for NewTransaction {
 }
 
 impl Transaction {
+    pub fn serial(&self) -> i32 {
+        self.serial
+    }
     /// As account with id `id`, how much does this transaction affect me?
     pub fn get_change(&self, id: &Uuid) -> error::Result<Option<Money>> {
         let amount = Money::of_minor(
@@ -223,7 +226,6 @@ impl Transaction {
         match self.trans_type {
             TransactionType::Deposit => {
                 if &self.sender == id {
-                    // What does from even do here?
                     return Ok(Some(amount));
                 }
                 Ok(None)
@@ -237,7 +239,12 @@ impl Transaction {
                     return Ok(Some(amount));
                 };
                 if &self.recipient.unwrap() == id {
-                    return Ok(Some(amount));
+                    return Ok(
+                        Some(
+                            amount.checked_neg()
+                            .expect("This error shouldn't happen, but not sure how to fix.")
+                            )
+                        );
                 };
                 Ok(None)
             }
@@ -246,7 +253,12 @@ impl Transaction {
                     bail!("Transaction of type `{:?}` was invalid, recipient was null", self.trans_type );
                 }
                 if &self.recipient.unwrap() == id {
-                    return Ok(Some(amount));
+                    return Ok(
+                        Some(
+                            amount.checked_neg()
+                            .expect("This error shouldn't happen, but not sure how to fix.")
+                            )
+                        );
                 };
                 Ok(None)
             }

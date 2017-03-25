@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
 
 [dependencies]
-atm-machine = {path = "../.."}
+atm-lib = {path = "../../atm"}
 error-chain = "*"
 diesel = { version = "*", features = ["postgres", "chrono", "uuid"] }
 diesel_codegen = { version = "*", features = ["postgres"] }

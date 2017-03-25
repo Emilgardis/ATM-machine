@@ -13,14 +13,14 @@ pub fn establish_connection() -> Result<PgConnection> {
     dotenv().chain_err(|| "While setting up dotenv")?;
 
     let database_url = env::var("DATABASE_URL").chain_err(|| "While getting env var DATABASE_URL")?;
-    PgConnection::establish(&database_url).map_err(|e| e.into())
+    PgConnection::establish(&database_url).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't establish connection")
 }
 
 pub fn add_account(conn: &PgConnection, account: NewAccount) -> Result<Account> {
     diesel::insert(&account).into(acc_table)
         .execute(conn)
         .chain_err(|| "While trying to execute insert")?;
-    acc_table.find(account.id()).first(conn).map_err(|e| e.into())
+    acc_table.find(account.id()).first(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't find newly added accout")
 }
 
 pub fn execute_transaction(conn: &PgConnection, ntrans: NewTransaction) -> Result<Transaction> {
@@ -38,6 +38,18 @@ pub fn all_accounts(conn: &PgConnection) -> Result<Vec<Account>> {
     acc_table.load(conn).map_err(|e| e.into())
 }
 
-pub fn find_by_owner(conn: &PgConnection, owner: Owner) -> Result<Vec<Account>> {
+pub fn all_transactions(conn: &PgConnection) -> Result<Vec<Transaction>> {
+    trans_table.load(conn).map_err(|e| e.into())
+}
+
+pub fn accounts_by_owner(conn: &PgConnection, owner: &Owner) -> Result<Vec<Account>> {
     acc_table.filter(acc_dsl::owner_id.eq(owner.id())).get_results(conn).map_err(|e| e.into())
+}
+
+pub fn transactions_from(conn: &PgConnection, account: &Account) -> Result<Vec<Transaction>> {
+    trans_table
+        .filter(
+            trans_dsl::sender.eq(account.id())
+            .or(trans_dsl::recipient.eq(account.id())))
+        .get_results(conn).map_err(|e| e.into())
 }
