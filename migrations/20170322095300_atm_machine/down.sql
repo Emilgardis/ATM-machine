@@ -1,1 +1,2 @@
-DROP TABLE accounts 
+DROP TABLE accounts;
+DROP TABLE transactions;

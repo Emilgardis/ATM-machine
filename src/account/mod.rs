@@ -11,13 +11,15 @@ use currency::Money;
 use steel_cent;
 use error::*;
 use diesel::prelude::*;
+use diesel::pg::PgConnection;
 use diesel;
+use interface::diesel_conn;
 
 mod owner;
-pub mod schema;
+use interface::schemas::accounts;
 pub use self::owner::Owner;
+use transaction::{Transaction, NewTransaction};
 
-use self::schema::accounts;
 #[derive(Debug, Insertable)]
 #[table_name="accounts"]
 pub struct NewAccount {
@@ -59,7 +61,7 @@ impl NewAccount {
         Ok(NewAccount {
             id: id,
             pw_hash: pw_hash,
-            owner_id: owner.id,
+            owner_id: owner.id(),
             created: created,
             last_updated: created,
         })
@@ -109,6 +111,8 @@ impl Account {
     }
 
     pub fn funds(&self) -> HashMap<steel_cent::currency::Currency, i64> {
+        // TODO: Should be stored as a vec of all their specific transactions, and maybe
+        // optimised so that we neer really do 20+ searches.
         // let mut map = HashMap::new();
         // for trans in &self.account.transactions {
         //    if let Some(money) = trans.get_change(&self.id) {
@@ -124,6 +128,12 @@ impl Account {
         // map.into_iter().map(|(curr, amount)| Money::new(curr, amount)).collect()
         // map
         unimplemented!()
+    }
+
+    pub fn transfer(&self, conn: &PgConnection, other: &mut Account, amount: Money) -> Result<Transaction> {
+        let trans = NewTransaction::transfer(self.id().clone(), other.id().clone(), amount);
+        diesel_conn::execute_transaction(conn, trans)
+        
     }
 }
 //#[cfg(test)]

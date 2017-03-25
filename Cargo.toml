@@ -10,7 +10,6 @@ rust-argon2 = "*"
 chrono = { version = "*", features = ["serde"] }
 serde = "*"
 serde_derive = "*"
-serde_json = "*"
 base64 = "*"
 error-chain = "*"
 slog = "*"
@@ -20,8 +19,8 @@ diesel_codegen = { version = "*", features = ["postgres"] }
 dotenv = "*"
 steel-cent = { path = "steel-cent", features = ["serde_serialize"] }
 clippy = {version = "*", optional = true}
+byteorder = "*"
 
-[[bin]]
-name = "atm-interface"
-path = "src/bin/interface.rs"
-
+[[example]]
+name = "basic"
+path = "examples/basic/src/main.rs"

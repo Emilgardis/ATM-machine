@@ -4,7 +4,7 @@ use uuid::Uuid;
 pub struct Owner {
     /// An end-user
     #[serde(rename="OwnerId")]
-    pub id: Uuid, // Id of owner.
+    id: Uuid, // Id of owner.
     #[serde(rename="Name")]
     pub name: String,
 }
@@ -15,5 +15,8 @@ impl Owner {
             id: Uuid::new_v4(),
             name: name.as_ref().into(),
         }
+    }
+    pub fn id(&self) -> Uuid {
+        self.id
     }
 }

@@ -1,0 +1,12 @@
+[package]
+name = "basic"
+version = "0.1.0"
+authors = ["Emil Gardström <emil.gardstrom@gmail.com>"]
+
+[dependencies]
+atm-machine = {path = "../.."}
+error-chain = "*"
+diesel = { version = "*", features = ["postgres", "chrono", "uuid"] }
+diesel_codegen = { version = "*", features = ["postgres"] }
+dotenv = "*"
+steel-cent = { path = "../../steel-cent"}
