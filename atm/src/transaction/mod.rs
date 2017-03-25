@@ -238,10 +238,10 @@ impl Transaction {
                 if self.recipient.is_none() {
                     bail!("Transaction of type `{:?}` was invalid, recipient was null", self.trans_type );
                 }
-                if &self.recipient == id {
+                if &self.recipient.unwrap() == id {
                     return Ok(Some(amount));
                 };
-                if &self.sender.unwrap() == id {
+                if &self.sender == id {
                     return Ok(
                         Some(
                             amount.checked_neg()

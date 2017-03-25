@@ -20,7 +20,7 @@ fn run() -> Result<()> {
     println!("Input password of new user");
     let password_1 = String::from("hunter1");
     let password_2 = String::from("hunter2");
-    let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
+    let conn = diesel_conn::establish_connection(None).chain_err(|| "Failed to establish connection")?;
     println!("All users are: {:?}", diesel_conn::all_accounts(&conn));
     let owner_1 = Owner::new("Joe John");
     let owner_2 = Owner::new("Joe John");

@@ -1,18 +1,20 @@
 use diesel;
 use diesel::prelude::*;
-use dotenv::dotenv;
 use account::{NewAccount, Account, Owner};
 use transaction::{Transaction, NewTransaction};
-use std::env;
 use diesel::pg::PgConnection;
+use uuid;
 use error::*;
 use interface::schemas::accounts::{dsl as acc_dsl, table as acc_table};
 use interface::schemas::transactions::{table as trans_table, dsl as trans_dsl};
 
-pub fn establish_connection() -> Result<PgConnection> {
-    dotenv().chain_err(|| "While setting up dotenv")?;
 
-    let database_url = env::var("DATABASE_URL").chain_err(|| "While getting env var DATABASE_URL")?;
+pub fn establish_connection<S>(db_url: S) -> Result<PgConnection>
+    where S: Into<Option<String>>{
+    let database_url = match db_url.into() {
+        Some(url) => url.to_string(),
+        None => super::get_database_url()?,
+    };
     PgConnection::establish(&database_url).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't establish connection")
 }
 
@@ -20,9 +22,11 @@ pub fn add_account(conn: &PgConnection, account: NewAccount) -> Result<Account> 
     diesel::insert(&account).into(acc_table)
         .execute(conn)
         .chain_err(|| "While trying to execute insert")?;
-    acc_table.find(account.id()).first(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't find newly added accout")
+    acc_table.find(account.id()).first(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't find newly added account")
 }
-
+pub fn get_account(conn: &PgConnection, account_id: &uuid::Uuid) -> Result<Account> {
+    acc_table.find(account_id).get_result(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| format!("Couldn't find account with id {:?}", account_id))
+}
 pub fn execute_transaction(conn: &PgConnection, ntrans: NewTransaction) -> Result<Transaction> {
     conn.transaction::<Transaction, Error, _>(|| {
             diesel::insert(&ntrans).into(trans_table)

@@ -11,5 +11,8 @@ r2d2-diesel = "*"
 rocket = "*"
 rocket_contrib = {version = "*", default-features = false, features = ["json", "tera_templates", "uuid"]}
 rocket_codegen = "*"
+serde = "*"
 serde_derive = "*"
 serde_json = "*"
+error-chain = "*"
+uuid = "*"

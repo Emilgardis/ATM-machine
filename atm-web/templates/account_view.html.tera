@@ -1,0 +1,48 @@
+<html>
+<head>
+<style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+</head>
+<body>
+<h1>Account - {{account.id}}</h1>
+<ul>
+{% for fund in funds %}
+<li>{{fund}}</li>
+{% endfor %}
+</ul>
+<h3>Transactions</h3>
+<table>
+<tr>
+    <th>Id</th>
+    <th>Type</th>
+    <th>Sender</th>
+    <th>Recipient</th>
+    <th>amount</th>
+</tr>
+{% for transaction in transactions %}
+<tr>
+<td>{{transaction.serial}}</th>
+<td>{{transaction.trans_type}}</th>
+<td><a href="/admin-panel/accounts/account?id={{transaction.sender}}">{{transaction.sender}}</th>
+<td><a href="/admin-panel/accounts/account?id={{transaction.recipient}}">{{transaction.recipient}}</th>
+<td>{{transaction.amount}}</th>
+</tr>
+{% endfor %}
+</table>
+</body>
+</html>
