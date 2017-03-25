@@ -6,7 +6,6 @@ extern crate dotenv;
 extern crate steel_cent;
 // mod custom_views;
 use atm_lib as atm;
-use std::io::{self, Read};
 
 use atm::account::{NewAccount, Owner};
 use atm::currency::{Money, currency};
@@ -15,28 +14,12 @@ use atm::error::*;
 
 use diesel::prelude::*;
 
-fn main() {
-    if let Err(ref e) = run() {
-        println!("error: {}", e);
-
-        for e in e.iter().skip(1) {
-            println!("caused by: {}", e);
-        }
-
-        // The backtrace is not always generated. Try to run this example
-        // with `RUST_BACKTRACE=1`.
-        if let Some(backtrace) = e.backtrace() {
-            println!("backtrace: {:?}", backtrace);
-        }
-
-        ::std::process::exit(1);
-    }
-}
+quick_main!(run);
 
 fn run() -> Result<()> {
     println!("Input password of new user");
-    let mut password_1 = String::from("hunter1");
-    let mut password_2 = String::from("hunter2");
+    let password_1 = String::from("hunter1");
+    let password_2 = String::from("hunter2");
     let conn = diesel_conn::establish_connection().chain_err(|| "Failed to establish connection")?;
     println!("All users are: {:?}", diesel_conn::all_accounts(&conn));
     let owner_1 = Owner::new("Joe John");
