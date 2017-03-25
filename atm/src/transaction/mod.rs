@@ -96,12 +96,12 @@ impl NewTransaction {
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, AsChangeset)]
 pub struct Transaction {
     serial: i32,
-    sender: Uuid,
-    recipient: Option<Uuid>,
-    trans_type: TransactionType,
-    amount: i64,
-    currency: String, 
-    date: chrono::DateTime<chrono::UTC>,
+    pub sender: Uuid,
+    pub recipient: Option<Uuid>,
+    pub trans_type: TransactionType,
+    pub amount: i64,
+    pub currency: String, 
+    pub date: chrono::DateTime<chrono::UTC>,
 }
 
 impl ::std::convert::TryFrom<Transaction> for TransactionE {
@@ -214,15 +214,18 @@ impl From<TransactionE> for NewTransaction {
 }
 
 impl Transaction {
+    pub fn amount_as_money(&self) -> error::Result<Money> {
+        Ok(Money::of_minor(
+            currency::with_code(
+                &self.currency).ok_or(format!("Not a valid currency code: {}", self.currency))?,
+            self.amount))
+    }
     pub fn serial(&self) -> i32 {
         self.serial
     }
     /// As account with id `id`, how much does this transaction affect me?
     pub fn get_change(&self, id: &Uuid) -> error::Result<Option<Money>> {
-        let amount = Money::of_minor(
-            currency::with_code(
-                &self.currency).ok_or(format!("Not a valid currency code: {}", self.currency))?,
-            self.amount);
+        let amount = self.amount_as_money()?;
         match self.trans_type {
             TransactionType::Deposit => {
                 if &self.sender == id {
@@ -235,10 +238,10 @@ impl Transaction {
                 if self.recipient.is_none() {
                     bail!("Transaction of type `{:?}` was invalid, recipient was null", self.trans_type );
                 }
-                if &self.sender == id {
+                if &self.recipient == id {
                     return Ok(Some(amount));
                 };
-                if &self.recipient.unwrap() == id {
+                if &self.sender.unwrap() == id {
                     return Ok(
                         Some(
                             amount.checked_neg()
