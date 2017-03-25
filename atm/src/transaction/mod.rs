@@ -105,7 +105,7 @@ pub struct Transaction {
 }
 
 impl ::std::convert::TryFrom<Transaction> for TransactionE {
-    type Err = error::Error;
+    type Error = error::Error;
     fn try_from(ts: Transaction) -> error::Result<TransactionE> {
         let ty = ts.trans_type;
         use self::TransactionType::*;
