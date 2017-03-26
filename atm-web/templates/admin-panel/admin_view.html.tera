@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width" />
+    <title>Admin View</title>
+  </head>
+  <body>
+    <h1>Super secret stuff!!</h1>
+    <table>
+    <tr>
+        <th>Owner</th>
+        <th>Account ID</th>
+        <th>Funds</th>
+        <th>Last Updated</th>
+    </tr>
+    {% for accountc in accounts %}
+    <tr>
+        <td><a href="/admin-panel/users/owner?id={{accountc.owner.id}}">{{accountc.owner.name}}</td>
+        <td><a href="/admin-panel/accounts/account?id={{accountc.account.id}}">{{accountc.account.id}}</td>
+        <td>{{accountc.funds}}</td>
+        <td>{{accountc.account.last_updated}}</td>
+    </tr>
+    {% endfor %}
+        </table>
+  </body>
+</html>
+
+

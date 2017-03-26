@@ -21,3 +21,15 @@ table! {
         date -> Timestamptz,
     }
 }
+
+table! {
+    use diesel::types::*;
+    owners (id) {
+        id -> Uuid,
+        name -> Text,
+        registered -> Timestamptz,
+        email -> Nullable<Text>,
+        phone_number -> Nullable<Text>,
+        date_of_birth -> Nullable<Timestamptz>,
+    }
+}

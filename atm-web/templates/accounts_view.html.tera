@@ -1,8 +1,0 @@
-<html>
-<body>
-<h1>Accounts</h1>
-{% for account in accounts %}
-<h3><a href="/admin-panel/accounts/account?id={{account.id}}">{{account.id}}</h3>
-{% endfor %}
-</body>
-</html>

@@ -1,3 +1,7 @@
+-- CREATE EXTENSION citext;
+-- CREATE DOMAIN email AS citext
+--  CHECK ( value ~ '^[a-zA-Z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$' );
+
 CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     owner_id UUID NOT NULL,
@@ -13,4 +17,12 @@ CREATE TABLE transactions (
     amount BigInt NOT NULL,
     currency Text NOT NULL,
     date timestamptz NOT NULL
-)
+);
+CREATE TABLE owners (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    registered timestamptz,
+    email email,
+    phone_number TEXT,
+    date_of_birth timestamptz
+);

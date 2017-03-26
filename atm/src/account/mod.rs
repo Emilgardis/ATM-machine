@@ -17,7 +17,7 @@ use interface::diesel_conn;
 
 mod owner;
 use interface::schemas::accounts;
-pub use self::owner::Owner;
+pub use self::owner::{Owner, NewOwner};
 use transaction::{Transaction, NewTransaction};
 
 #[derive(Debug, Insertable)]
@@ -32,8 +32,8 @@ pub struct NewAccount {
 
 
 impl NewAccount {
-    pub fn id(&self) -> Uuid {
-        self.id
+    pub fn id(&self) -> &Uuid {
+        &self.id
     }
     pub fn new<T: AsRef<str>, F: Into<Option<Money>>>(owner: &Owner,
                                                       funds: F,

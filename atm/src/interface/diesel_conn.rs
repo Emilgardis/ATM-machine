@@ -1,12 +1,13 @@
 use diesel;
 use diesel::prelude::*;
-use account::{NewAccount, Account, Owner};
+use account::{NewAccount, Account, Owner, NewOwner};
 use transaction::{Transaction, NewTransaction};
 use diesel::pg::PgConnection;
 use uuid;
 use error::*;
-use interface::schemas::accounts::{dsl as acc_dsl, table as acc_table};
+use interface::schemas::accounts::{table as acc_table, dsl as acc_dsl};
 use interface::schemas::transactions::{table as trans_table, dsl as trans_dsl};
+use interface::schemas::owners::{table as owner_table, dsl as owner_dsl};
 
 
 pub fn establish_connection<S>(db_url: S) -> Result<PgConnection>
@@ -19,14 +20,29 @@ pub fn establish_connection<S>(db_url: S) -> Result<PgConnection>
 }
 
 pub fn add_account(conn: &PgConnection, account: NewAccount) -> Result<Account> {
+    // FIXME: Do check on owner id if it exists.
     diesel::insert(&account).into(acc_table)
         .execute(conn)
         .chain_err(|| "While trying to execute insert")?;
-    acc_table.find(account.id()).first(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| "Couldn't find newly added account")
+    // Do we do this or is order guaranteed?? i.e get last entry.
+    get_account(conn, account.id()).chain_err(|| "Couldn't find newly added account.")
 }
+
+pub fn add_owner(conn: &PgConnection, owner: NewOwner) -> Result<Owner> {
+    diesel::insert(&owner).into(owner_table)
+        .execute(conn)
+        .chain_err(|| "While trying to execute insert")?;
+    get_owner(conn, owner.id()).chain_err(|| "Couldn't find newly added owner")
+}
+
 pub fn get_account(conn: &PgConnection, account_id: &uuid::Uuid) -> Result<Account> {
     acc_table.find(account_id).get_result(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| format!("Couldn't find account with id {:?}", account_id))
 }
+
+pub fn get_owner(conn: &PgConnection, owner_id: &uuid::Uuid) -> Result<Owner> {
+    owner_table.find(owner_id).get_result(conn).map_err::<Error, _>(|e| e.into()).chain_err(|| format!("Couldn't find owner with id {:?}", owner_id))
+}
+
 pub fn execute_transaction(conn: &PgConnection, ntrans: NewTransaction) -> Result<Transaction> {
     conn.transaction::<Transaction, Error, _>(|| {
             diesel::insert(&ntrans).into(trans_table)

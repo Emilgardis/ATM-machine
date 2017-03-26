@@ -1,4 +1,5 @@
-
+use super::AdminUser;
+use super::account;
 use pool;
 use rocket_contrib::Template;
 use rocket;
@@ -7,6 +8,7 @@ use atm_lib::account::Account;
 use atm_lib::transaction;
 use atm_lib::interface;
 use atm_lib::currency;
+use error;
 use uuid::Uuid;
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Flash, Redirect};
@@ -15,7 +17,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use super::AdminUser;
+
 #[derive(FromForm)]
 struct AdminForm {
     username: String,
@@ -40,9 +42,14 @@ fn admin_login_post(socket_addr: SocketAddr, mut session: Session, admin_form: F
 }
 
 #[get("/admin-panel")]
-fn index_page(_admin: AdminUser) -> Template {
-    let context: HashMap<&str, &str> = HashMap::new();
-    Template::render("admin_view", &context)
+fn index_page(_admin: AdminUser, conn: pool::Conn) -> error::Result<Template>  {
+    // Borrowed from account.rs::show_accounts
+    let context = account::AccountsContext {
+        accounts: interface::diesel_conn::all_accounts(&conn)?
+            .into_iter()
+            .map(|acc| account::make_account_context(&conn, &acc.id).expect("FIX THIS, SHOULDN'T HAPPEN")).collect(),
+    };
+    Ok(Template::render("admin-panel/admin_view", &context))
 }
 
 #[get("/admin-panel", rank = 1)]
@@ -52,7 +59,7 @@ fn index_login_page(flash: Option<FlashMessage>) -> Template {
         context.insert("name", flash.name());
         context.insert("msg", flash.msg());
     }
-    Template::render("admin_login", &context)
+    Template::render("admin-panel/admin_login", &context)
 }
 
 #[get("/admin-panel/<path..>", rank = 99)]

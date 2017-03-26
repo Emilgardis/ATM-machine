@@ -19,7 +19,8 @@ tr:nth-child(even) {
 </style>
 </head>
 <body>
-<h1>Account - {{account.id}}</h1>
+<h1><a href="/admin-panel/users/owner?id={{owner.id}}">{{owner.name}}</a> - {{account.id}}</h1>
+
 <ul>
 {% for fund in funds %}
 <li>{{fund}}</li>

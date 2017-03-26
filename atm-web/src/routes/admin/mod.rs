@@ -1,6 +1,6 @@
 pub mod account;
 pub mod index;
-
+pub mod owner;
 
 use rocket::request::{self, FromRequest, Request};
 use rocket::http::Status;

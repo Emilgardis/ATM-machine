@@ -1,35 +1,40 @@
+use super::AdminUser;
+
 use pool;
 use rocket_contrib::Template;
 use rocket_contrib::UUID;
-use atm_lib::account::Account;
+use atm_lib::account::{Account, Owner};
 use atm_lib::transaction;
 use atm_lib::interface;
 use atm_lib::currency;
 use uuid::Uuid;
-use super::AdminUser;
 
 use error::*;
 // Move to appropriate mod later
 #[derive(Serialize)]
-struct AccountsContext {
-    accounts: Vec<Account>,
+pub struct AccountsContext {
+    pub accounts: Vec<AccountContext>,
 }
 
 
 #[get("/admin-panel/accounts")]
 fn show_accounts(_admin: AdminUser, conn: pool::Conn) -> Result<Template> {
     let context = AccountsContext {
-        accounts: interface::diesel_conn::all_accounts(&conn)?,
+        accounts: interface::diesel_conn::all_accounts(&conn)?
+            .into_iter()
+            .map(|acc| make_account_context(&conn, &acc.id).expect("FIX THIS, SHOULDN'T HAPPEN")).collect(),
     };
-    Ok(Template::render("accounts_view", &context))
+    Ok(Template::render("admin-panel/accounts_view", &context))
 }
 
 // Move to appropriate
 #[derive(Serialize)]
-struct AccountContext {
+pub struct AccountContext {
     funds: Vec<String>,
     account: Account,
-    transactions: Vec<TransactionOfUser>
+    transactions: Vec<TransactionOfUser>,
+    owner: Owner,
+
 }
 
 #[derive(Serialize)]
@@ -41,10 +46,10 @@ struct TransactionOfUser {
     recipient: Option<Uuid>,
 }
 
-fn make_account_context(conn: &pool::Conn, account_id: &Uuid) -> Result<AccountContext> {
+pub  fn make_account_context(conn: &pool::Conn, account_id: &Uuid) -> Result<AccountContext> {
     let account = interface::diesel_conn::get_account(&conn, &account_id)?;
     let transactions = interface::diesel_conn::transactions_from(&conn, &account)?
-        .into_iter().filter_map( // FIXME: Handle error properly
+        .into_iter().filter_map( // FIXME: Handle error properly, can fail if transaction is invalid.
             |trans| 
                  Some(
                     TransactionOfUser {
@@ -63,10 +68,12 @@ fn make_account_context(conn: &pool::Conn, account_id: &Uuid) -> Result<AccountC
                  })
             )
         .collect();
+    let owner = interface::diesel_conn::get_owner(&conn, &account.owner_id)?;
     let context = AccountContext {
         funds: currency::convert_map_to_money(account.funds(&conn)?).into_iter().map(|elem| format!("{}", elem)).collect(),
         account: account,
         transactions: transactions,
+        owner: owner,
     };
     Ok(context)
 }
@@ -80,5 +87,5 @@ struct AccountQuery {
 fn show_account(_admin: AdminUser, conn: pool::Conn, account_query: AccountQuery) -> Result<Template> {
     let context = make_account_context(&conn, &account_query.id)?;
     println!("Passed in: {:?}", account_query.opt);
-    Ok(Template::render("account_view", &context))
+    Ok(Template::render("admin-panel/account_view", &context))
 }
