@@ -18,11 +18,13 @@ extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
 
+extern crate argon2;
 extern crate uuid;
 
 #[macro_use]
 extern crate slog;
 
+extern crate rand;
 pub mod error;
 pub mod pool;
 pub mod routes;

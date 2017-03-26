@@ -11,11 +11,13 @@ use atm_lib::currency;
 use error;
 use uuid::Uuid;
 use rocket::request::{Form, FlashMessage};
-use rocket::response::{Flash, Redirect};
-use rocket::http::{Cookies, Cookie, Session};
+use rocket::response::{Failure, Flash, Redirect};
+use rocket::http::{Cookie, Session, Status};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use rand::{OsRng, Rng};
+use argon2;
 
 
 #[derive(FromForm)]
@@ -30,6 +32,15 @@ fn admin_login_post(socket_addr: SocketAddr, mut session: Session, admin_form: F
     let admin = admin_form.get();
     
     if (admin.username == "admin") & (admin.password == "hunter1") {
+        //let pw_hash: String = {
+        //    let mut rng = OsRng::new().expect("Rng failed");
+
+        //    let salt: Vec<u8> = rng.gen_iter::<u8>().take(16).collect();
+        //    let pw = "1".as_bytes();
+        //    let config = argon2::Config::default();
+        //    argon2::hash_encoded(pw, salt.as_slice(), &config).expect("Hash failed, shouldn't happen").to_owned()
+        //};
+
         session.set(
             Cookie::build("admin_id", "1")
             //.secure(true) 
@@ -63,6 +74,6 @@ fn index_login_page(flash: Option<FlashMessage>) -> Template {
 }
 
 #[get("/admin-panel/<path..>", rank = 99)]
-fn no_admin_fall(path: PathBuf) -> Redirect {
-    Redirect::to("/admin-panel")
+fn no_admin_fall(path: PathBuf) -> Failure {
+    Failure(Status::Unauthorized)
 }

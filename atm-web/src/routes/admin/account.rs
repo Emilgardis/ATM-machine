@@ -1,6 +1,7 @@
 use super::AdminUser;
 
 use pool;
+use rocket;
 use rocket_contrib::Template;
 use rocket_contrib::UUID;
 use atm_lib::account::{Account, Owner};
@@ -84,8 +85,11 @@ struct AccountQuery {
     pub opt: Option<String>
 }
 #[get("/admin-panel/accounts/account?<account_query>")]
-fn show_account(_admin: AdminUser, conn: pool::Conn, account_query: AccountQuery) -> Result<Template> {
-    let context = make_account_context(&conn, &account_query.id)?;
+fn show_account(_admin: Option<AdminUser>, conn: pool::Conn, account_query: AccountQuery) -> ::std::result::Result<Template, rocket::response::Failure> {
+    if _admin.is_none() {
+        return Err(rocket::response::Failure(rocket::http::Status::Unauthorized));
+    }
+    let context = make_account_context(&conn, &account_query.id).expect("Again, this needs to be fxed...");
     println!("Passed in: {:?}", account_query.opt);
     Ok(Template::render("admin-panel/account_view", &context))
 }
