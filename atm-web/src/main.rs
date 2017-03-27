@@ -37,7 +37,8 @@ fn run() -> Result<i32> {
     let pool = pool::establish_connection_pool(None)?;
     rocket::ignite()
         .manage(pool)
-        .mount("/", routes![
+        .mount("/",
+               routes![
                routes::admin::account::show_accounts,
                routes::admin::account::show_account,
                routes::admin::index::index_page,
@@ -50,15 +51,17 @@ fn run() -> Result<i32> {
     Ok(0)
 }
 
-pub fn print_error_to_stderr<E>(e: E) where E: Into<Error> {
-        use ::std::io::Write;
-        let e = e.into();
-        let stderr = &mut ::std::io::stderr();
-        let errmsg = "Error writing to stderr";
+pub fn print_error_to_stderr<E>(e: E)
+    where E: Into<Error>
+{
+    use ::std::io::Write;
+    let e = e.into();
+    let stderr = &mut ::std::io::stderr();
+    let errmsg = "Error writing to stderr";
 
-        writeln!(stderr, "error: {}", e).expect(errmsg);
+    writeln!(stderr, "error: {}", e).expect(errmsg);
 
-        for e in e.iter().skip(1) {
-            writeln!(stderr, "caused by: {}", e).expect(errmsg);
-        }
+    for e in e.iter().skip(1) {
+        writeln!(stderr, "caused by: {}", e).expect(errmsg);
+    }
 }

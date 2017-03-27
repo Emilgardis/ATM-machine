@@ -1,24 +1,25 @@
 //! All the account and bank/money functions, handles things.
-use std::hash;
-use std::collections::HashMap;
-use rand::{OsRng, Rng};
+
 use argon2;
 
 use chrono;
-use uuid::Uuid;
 
 use currency::Money;
-use steel_cent;
-use error::*;
-use diesel::prelude::*;
-use diesel::pg::PgConnection;
 use diesel;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use error::*;
 use interface::diesel_conn;
+use rand::{OsRng, Rng};
+use std::collections::HashMap;
+use std::hash;
+use steel_cent;
+use uuid::Uuid;
 
 mod owner;
 use interface::schemas::accounts;
-pub use self::owner::{Owner, NewOwner};
-use transaction::{Transaction, NewTransaction};
+pub use self::owner::{NewOwner, Owner};
+use transaction::{NewTransaction, Transaction};
 
 #[derive(Debug, Insertable)]
 #[table_name="accounts"]
@@ -46,7 +47,9 @@ impl NewAccount {
             let salt: Vec<u8> = rng.gen_iter::<u8>().take(16).collect();
             let pw = password.as_ref().as_bytes();
             let config = argon2::Config::default();
-            argon2::hash_encoded(pw, salt.as_slice(), &config).chain_err(|| "While making encoded hash of password")?.to_owned()
+            argon2::hash_encoded(pw, salt.as_slice(), &config)
+                .chain_err(|| "While making encoded hash of password")?
+                .to_owned()
 
         };
         //#[cfg(debug_assertions)]
@@ -97,25 +100,31 @@ impl Account {
             .chain_err(|| format!("Failed to check password for {}.", self.id()))?;
         //#[cfg(debug_assertions)]
         //#let password_matches = {
-        //#   password.as_ref() == self.pw_hash
+        //# password.as_ref() == self.pw_hash
         //#;
 
         if password_matches {
-            // return Ok(&mut self.account); FIXME: Make account.transactions locked behind crypto.
             return Ok(());
         }
         bail!("Password didn't match!")
     }
 
-    pub fn funds(&self, conn: &PgConnection) -> Result<HashMap<steel_cent::currency::Currency, i64>> {
+    pub fn funds(&self,
+                 conn: &PgConnection)
+                 -> Result<HashMap<steel_cent::currency::Currency, i64>> {
         // TODO: Should be stored as a vec of all their specific transactions, and maybe
         // optimised so that we neer really do 20+ searches.
         let mut map = HashMap::new();
         // Carrier on for and if let is wierd...
-        for trans in diesel_conn::transactions_from(conn, self)
-            .chain_err(|| format!("While trying to get transactions affecting account {:?}", self.id()))? {
+        for trans in diesel_conn::transactions_from(conn, self).chain_err(|| {
+                format!("While trying to get transactions affecting account {:?}",
+                        self.id())
+            })? {
             if let Some(money) = trans.get_change(&self.id)
-                .chain_err(|| format!("While calculating value of transaction id: {}", trans.serial()))? {
+                .chain_err(|| {
+                    format!("While calculating value of transaction id: {}",
+                            trans.serial())
+                })? {
                 *map.entry(money.currency).or_insert(0) += money.minor_amount()
             }
         }
@@ -129,75 +138,79 @@ impl Account {
         // map
     }
 
-    pub fn transfer(&self, conn: &PgConnection, other: &mut Account, amount: Money) -> Result<Transaction> {
+    pub fn transfer(&self,
+                    conn: &PgConnection,
+                    other: &mut Account,
+                    amount: Money)
+                    -> Result<Transaction> {
         let trans = NewTransaction::transfer(self.id().clone(), other.id().clone(), amount);
         diesel_conn::execute_transaction(conn, trans).chain_err(|| "Transaction failed")
-        
+
     }
 }
 //#[cfg(test)]
 //#mod account_tests {
-//#   use super::*;
-//#   use currency::{currency as scc, Money};
-//#   use super::super::uuid::Uuid;
-//#   use transaction::Transaction;
+//# use super::*;
+//# use currency::{currency as scc, Money};
+//# use super::super::uuid::Uuid;
+//# use transaction::Transaction;
 //
-//#   #[test]
-//#   fn secure_account_and_decrypt() {
-//#       let owner = Owner::new("John Doe");
-//#       let mut sec_account = StoredAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
-//#           .unwrap();
+//# #[test]
+//# fn secure_account_and_decrypt() {
+//#     let owner = Owner::new("John Doe");
+//#     let mut sec_account = StoredAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
+//#         .unwrap();
 //
-//#       println!("{:#?}", sec_account);
-//#       sec_account.open("hunter1").unwrap();
-//#   }
+//#     println!("{:#?}", sec_account);
+//#     sec_account.open("hunter1").unwrap();
+//# }
 //
-//#   #[test]
-//#   #[should_panic]
-//#   fn open_with_wrong_password() {
-//#       let owner = Owner::new("John Doe");
-//#       let mut sec_account = NewAccount::new(owner, None, "hunter1").unwrap();
+//# #[test]
+//# #[should_panic]
+//# fn open_with_wrong_password() {
+//#     let owner = Owner::new("John Doe");
+//#     let mut sec_account = NewAccount::new(owner, None, "hunter1").unwrap();
 //
-//#       // println!("{:?}", sec_account);
-//#       let open_account = sec_account.open("wrongpass").expect("Fail means success");
-//#   }
+//#     // println!("{:?}", sec_account);
+//#     let open_account = sec_account.open("wrongpass").expect("Fail means success");
+//# }
 //
-//#   #[test]
-//#   fn check_funds() {
-//#       use std::collections::HashMap;
-//#       let owner = Owner::new("John Doe");
-//#       let mut sec_account = NewAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
-//#           .unwrap();
-//#       let other_owner = Owner::new("Jane Doe");
-//#       let mut other_sec_account =
-//#           StoredAccount::new(other_owner, Money::of_major(scc::JPY, 100), "password").unwrap();
-//#       sec_account.account
-//#           .transactions
-//#           .push(Transaction::deposit(sec_account.id, Money::of_major(scc::SEK, 100)));
-//#       sec_account.account
-//#           .transactions
-//#           .push(Transaction::withdrawal(sec_account.id, Money::of_major(scc::ISK, 40)));
-//#       sec_account.account.transactions.push(Transaction::payment(other_sec_account.id,
-//#                                                                  sec_account.id,
-//#                                                                  Money::of_major(scc::USD, 30)));
-//#       other_sec_account.account
-//#           .transactions
-//#           .push(Transaction::payment(other_sec_account.id,
-//#                                      sec_account.id,
-//#                                      Money::of_major(scc::USD, 30)));
-//#       let funds = sec_account.funds();
-//#       let checks = {
-//#           let mut checks = HashMap::new();
-//#           checks.insert(scc::SEK, 20000);
-//#           checks.insert(scc::ISK, -40);
-//#           checks.insert(scc::USD, 3000);
-//#           checks
-//#       };
+//# #[test]
+//# fn check_funds() {
+//#     use std::collections::HashMap;
+//#     let owner = Owner::new("John Doe");
+//#     let mut sec_account = NewAccount::new(owner, Money::of_major(scc::SEK, 100), "hunter1")
+//#         .unwrap();
+//#     let other_owner = Owner::new("Jane Doe");
+//#     let mut other_sec_account =
+//#         StoredAccount::new(other_owner, Money::of_major(scc::JPY, 100), "password").unwrap();
+//#     sec_account.account
+//#         .transactions
+//#         .push(Transaction::deposit(sec_account.id, Money::of_major(scc::SEK, 100)));
+//#     sec_account.account
+//#         .transactions
+//#         .push(Transaction::withdrawal(sec_account.id, Money::of_major(scc::ISK, 40)));
+//#     sec_account.account.transactions.push(Transaction::payment(other_sec_account.id,
+//#                                                                sec_account.id,
+//#                                                                Money::of_major(scc::USD, 30)));
+//#     other_sec_account.account
+//#         .transactions
+//#         .push(Transaction::payment(other_sec_account.id,
+//#                                    sec_account.id,
+//#                                    Money::of_major(scc::USD, 30)));
+//#     let funds = sec_account.funds();
+//#     let checks = {
+//#         let mut checks = HashMap::new();
+//#         checks.insert(scc::SEK, 20000);
+//#         checks.insert(scc::ISK, -40);
+//#         checks.insert(scc::USD, 3000);
+//#         checks
+//#     };
 //
-//#       assert_eq!(&funds.len(), &checks.len());
-//#       for (curr, amount) in funds.iter() {
-//#           assert_eq!(amount, checks.get(curr).unwrap());
-//#       }
-//#       // FIXME: Add check for other account
-//#   }
+//#     assert_eq!(&funds.len(), &checks.len());
+//#     for (curr, amount) in funds.iter() {
+//#         assert_eq!(amount, checks.get(curr).unwrap());
+//#     }
+//#     // FIXME: Add check for other account
+//# }
 //

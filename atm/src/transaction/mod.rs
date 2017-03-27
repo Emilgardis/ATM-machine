@@ -1,13 +1,13 @@
-use currency::{Money, currency};
-
-use uuid::Uuid;
 use chrono;
+use currency::{Money, currency};
 use diesel;
-use diesel::prelude::*;
 use diesel::expression::{self, AsExpression};
+use diesel::prelude::*;
 use diesel::types::{Nullable, SmallInt};
 use error;
 use interface::schemas::transactions;
+
+use uuid::Uuid;
 #[repr(i16)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromPrimitive)]
 pub enum TransactionType {
@@ -18,7 +18,9 @@ pub enum TransactionType {
 }
 
 impl diesel::types::FromSqlRow<diesel::types::SmallInt, diesel::pg::Pg> for TransactionType {
-    fn build_from_row<R: diesel::row::Row<diesel::pg::Pg>>(row: &mut R) -> ::std::result::Result<Self, Box<::std::error::Error+Send+Sync>> {
+    fn build_from_row<R: diesel::row::Row<diesel::pg::Pg>>
+        (row: &mut R)
+         -> ::std::result::Result<Self, Box<::std::error::Error + Send + Sync>> {
         use self::TransactionType::*;
         match i16::build_from_row(row)? {
             1 => Ok(Transfer),
@@ -47,50 +49,52 @@ impl<'a> AsExpression<Nullable<SmallInt>> for &'a TransactionType {
 #[derive(Debug, Clone, Serialize, Deserialize, Insertable)]
 #[table_name="transactions"]
 pub struct NewTransaction {
-	// TODO: Better name please.
     pub sender: Uuid,
     pub recipient: Option<Uuid>,
     pub trans_type: TransactionType,
     pub amount: i64,
-    pub currency: String, 
+    pub currency: String,
     pub date: chrono::DateTime<chrono::UTC>,
 }
 
 impl NewTransaction {
     pub fn deposit(from: Uuid, money: Money) -> NewTransaction {
         TransactionE::Deposit {
-            from: from,
-            amount: money,
-            date: chrono::UTC::now(),
-        }.into()
+                from: from,
+                amount: money,
+                date: chrono::UTC::now(),
+            }
+            .into()
     }
 
     pub fn withdrawal(to: Uuid, money: Money) -> NewTransaction {
         TransactionE::Withdrawal {
-            to: to,
-            amount: money,
-            date: chrono::UTC::now(),
-        }.into()
+                to: to,
+                amount: money,
+                date: chrono::UTC::now(),
+            }
+            .into()
     }
 
     pub fn transfer(sender: Uuid, recipient: Uuid, money: Money) -> NewTransaction {
         TransactionE::Transfer {
-            sender: sender,
-            recipient: recipient,
-            amount: money,
-            date: chrono::UTC::now(),
-        }.into()
+                sender: sender,
+                recipient: recipient,
+                amount: money,
+                date: chrono::UTC::now(),
+            }
+            .into()
     }
 
     pub fn payment(sender: Uuid, recipient: Uuid, money: Money) -> NewTransaction {
         TransactionE::Payment {
-            sender: sender,
-            recipient: recipient,
-            amount: money,
-            date: chrono::UTC::now(),
-        }.into()
+                sender: sender,
+                recipient: recipient,
+                amount: money,
+                date: chrono::UTC::now(),
+            }
+            .into()
     }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, AsChangeset)]
@@ -100,7 +104,7 @@ pub struct Transaction {
     pub recipient: Option<Uuid>,
     pub trans_type: TransactionType,
     pub amount: i64,
-    pub currency: String, 
+    pub currency: String,
     pub date: chrono::DateTime<chrono::UTC>,
 }
 
@@ -113,48 +117,46 @@ impl ::std::convert::TryFrom<Transaction> for TransactionE {
             currency::with_code(
                 &ts.currency).ok_or(format!("Not a valid currency code: {}", ts.currency))?,
             ts.amount);
-        Ok(
-            match ty {
-                Transfer => {
-                    TransactionE::Transfer {
-                        sender: ts.sender,
-                        recipient: ts.recipient
-                            .ok_or("Transaction of type `Transfer` was invalid, no recipient.")?,
-                        amount: amount,
-                        date: ts.date,
-                    }
-                },
-                Deposit => {
-                    if ts.recipient.is_some() {
-                        bail!("Transaction of type `Transfer` was invalid, recipient specified.");
-                    }
-                    TransactionE::Deposit {
-                        from: ts.sender,
-                        amount: amount,
-                        date: ts.date,
-                    }
-                },
-                Withdrawal => {
-                    if ts.recipient.is_some() {
-                        bail!("Transaction of type `Transfer` was invalid, recipient specified.");
-                    }
-                    TransactionE::Withdrawal {
-                        to: ts.sender,
-                        amount: amount,
-                        date: ts.date,
-                    }
-                },
-                Payment => {
-                    TransactionE::Payment {
-                        sender: ts.sender,
-                        recipient: ts.recipient
-                            .ok_or("Transaction of type `Transfer` was invalid, no recipient.")?,
-                        amount: amount,
-                        date: ts.date,
-                    }
-                },
+        Ok(match ty {
+            Transfer => {
+                TransactionE::Transfer {
+                    sender: ts.sender,
+                    recipient: ts.recipient
+                        .ok_or("Transaction of type `Transfer` was invalid, no recipient.")?,
+                    amount: amount,
+                    date: ts.date,
+                }
             }
-        )
+            Deposit => {
+                if ts.recipient.is_some() {
+                    bail!("Transaction of type `Transfer` was invalid, recipient specified.");
+                }
+                TransactionE::Deposit {
+                    from: ts.sender,
+                    amount: amount,
+                    date: ts.date,
+                }
+            }
+            Withdrawal => {
+                if ts.recipient.is_some() {
+                    bail!("Transaction of type `Transfer` was invalid, recipient specified.");
+                }
+                TransactionE::Withdrawal {
+                    to: ts.sender,
+                    amount: amount,
+                    date: ts.date,
+                }
+            }
+            Payment => {
+                TransactionE::Payment {
+                    sender: ts.sender,
+                    recipient: ts.recipient
+                        .ok_or("Transaction of type `Transfer` was invalid, no recipient.")?,
+                    amount: amount,
+                    date: ts.date,
+                }
+            }
+        })
     }
 }
 
@@ -208,7 +210,6 @@ impl From<TransactionE> for NewTransaction {
             amount: money.minor_amount(),
             currency: money.currency.code(),
             date: date,
-
         }
     }
 }
@@ -236,32 +237,26 @@ impl Transaction {
             TransactionType::Transfer |
             TransactionType::Payment => {
                 if self.recipient.is_none() {
-                    bail!("Transaction of type `{:?}` was invalid, recipient was null", self.trans_type );
+                    bail!("Transaction of type `{:?}` was invalid, recipient was null",
+                          self.trans_type);
                 }
                 if &self.recipient.unwrap() == id {
                     return Ok(Some(amount));
                 };
                 if &self.sender == id {
-                    return Ok(
-                        Some(
-                            amount.checked_neg()
-                            .expect("This error shouldn't happen, but not sure how to fix.")
-                            )
-                        );
+                    return Ok(Some(amount.checked_neg()
+                        .expect("This error shouldn't happen, but not sure how to fix.")));
                 };
                 Ok(None)
             }
             TransactionType::Withdrawal => {
                 if self.recipient.is_none() {
-                    bail!("Transaction of type `{:?}` was invalid, recipient was null", self.trans_type );
+                    bail!("Transaction of type `{:?}` was invalid, recipient was null",
+                          self.trans_type);
                 }
                 if &self.recipient.unwrap() == id {
-                    return Ok(
-                        Some(
-                            amount.checked_neg()
-                            .expect("This error shouldn't happen, but not sure how to fix.")
-                            )
-                        );
+                    return Ok(Some(amount.checked_neg()
+                        .expect("This error shouldn't happen, but not sure how to fix.")));
                 };
                 Ok(None)
             }
@@ -269,9 +264,6 @@ impl Transaction {
     }
 }
 
-
-/// This is here more for bookkeeping.
-// FIXME: Decide if this should be used in transactions and or pending_transactions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingTransaction {
     transaction: Transaction,
@@ -283,7 +275,7 @@ pub struct PendingTransaction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransactionStatus {
     Pending,
-    Completed, // FIXME: Should this be used, pendingtransactions vec becomes more of a logbook
+    Completed,
     Declined,
 }
 

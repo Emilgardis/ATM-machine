@@ -1,6 +1,6 @@
-use uuid::Uuid;
 use chrono;
 use interface::schemas::owners;
+use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Queryable, AsChangeset)]
 pub struct Owner {
     /// An end-user
@@ -48,20 +48,22 @@ impl<'a> NewOwner<'a> {
     }
 
     pub fn set_email<S>(mut self, email: S) -> NewOwner<'a>
-    where S: Into<Option<&'a str>>{
+        where S: Into<Option<&'a str>>
+    {
         // Need to validate somewhere.
         self.email = email.into();
         self
     }
     pub fn set_phone_number<S>(mut self, phone_number: S) -> NewOwner<'a>
-    where S: Into<Option<&'a str>>{
+        where S: Into<Option<&'a str>>
+    {
         self.phone_number = phone_number.into();
         self
     }
     pub fn set_date_of_birth<S>(mut self, date: S) -> NewOwner<'a>
-    where S: Into<Option<chrono::DateTime<chrono::UTC>>>{
+        where S: Into<Option<chrono::DateTime<chrono::UTC>>>
+    {
         self.date_of_birth = date.into();
         self
     }
-
 }
