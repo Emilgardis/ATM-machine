@@ -1,7 +1,7 @@
 pub mod account;
 pub mod index;
 pub mod owner;
-
+pub mod transaction;
 use pool;
 use rocket::request::{self, FromRequest, Request};
 use rocket::http::Status;

@@ -9,7 +9,7 @@ use diesel::types::{Nullable, SmallInt};
 use error;
 use interface::schemas::transactions;
 #[repr(i16)]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromPrimitive)]
 pub enum TransactionType {
     Transfer = 1,
     Deposit = 2,
@@ -48,12 +48,12 @@ impl<'a> AsExpression<Nullable<SmallInt>> for &'a TransactionType {
 #[table_name="transactions"]
 pub struct NewTransaction {
 	// TODO: Better name please.
-    sender: Uuid,
-    recipient: Option<Uuid>,
-    trans_type: TransactionType,
-    amount: i64,
-    currency: String, 
-    date: chrono::DateTime<chrono::UTC>,
+    pub sender: Uuid,
+    pub recipient: Option<Uuid>,
+    pub trans_type: TransactionType,
+    pub amount: i64,
+    pub currency: String, 
+    pub date: chrono::DateTime<chrono::UTC>,
 }
 
 impl NewTransaction {

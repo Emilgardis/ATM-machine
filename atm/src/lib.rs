@@ -18,6 +18,10 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_codegen;
 extern crate dotenv;
+extern crate num;
+#[macro_use]
+extern crate num_derive;
+
 pub mod account;
 pub mod currency;
 pub mod transaction;

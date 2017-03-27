@@ -20,3 +20,5 @@ dotenv = "*"
 steel-cent = { path = "../steel-cent", features = ["serde_serialize"] }
 clippy = {version = "*", optional = true}
 byteorder = "*"
+num = "*"
+num-derive = "*"

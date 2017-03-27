@@ -16,8 +16,6 @@ use rocket::http::{Cookie, Session, Status};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use rand::{OsRng, Rng};
-use argon2;
 
 
 #[derive(FromForm)]
